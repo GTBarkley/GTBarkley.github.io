@@ -301,6 +301,8 @@ button:hover {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .pill {
@@ -316,6 +318,7 @@ button:hover {
 .viewer-frame {
   position: relative;
   min-height: 0;
+  min-width: 0;
   border-radius: 22px;
   overflow: hidden;
   border: 1px solid var(--line);
@@ -480,6 +483,65 @@ button:hover {
 
   .viewer-stack {
     gap: 16px;
+  }
+}
+
+@media (max-width: 768px) {
+  body {
+    font-size: 15px;
+  }
+
+  .layout {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .controls,
+  .viewer,
+  .roots-panel {
+    padding: 16px;
+  }
+
+  .summary-card {
+    margin-top: 12px;
+    padding: 14px;
+  }
+
+  .viewer {
+    height: calc(100dvh - 24px);
+    max-height: calc(100dvh - 24px);
+  }
+
+  .viewer-header {
+    gap: 12px;
+  }
+
+  .viewer-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .viewer-actions > * {
+    flex: 1 1 140px;
+  }
+
+  .pill {
+    min-width: 0;
+  }
+
+  .viewer-frame {
+    min-height: 300px;
+  }
+
+  .root-table th,
+  .root-table td {
+    padding: 10px 10px;
+    font-size: 0.92rem;
+  }
+
+  .tooltip {
+    max-width: min(240px, calc(100vw - 48px));
+    font-size: 0.82rem;
   }
 }
 

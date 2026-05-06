@@ -66,6 +66,10 @@ const plotView = {
   dragging: false,
   dragStartClient: null,
   lastPoint: null,
+  activePointers: new Map(),
+  pinchDistance: null,
+  pinchScale: 1,
+  pinchMidpoint: null,
 };
 
 function edgeSelect(key) {
@@ -673,6 +677,7 @@ function drawPlot(roots) {
     circle.addEventListener("click", (event) => {
       event.stopPropagation();
       onRootClick(index);
+      showTooltipAtCircle(tooltipText, circle);
     });
     plotLayer.append(circle);
     rootCircles.push(circle);
@@ -795,8 +800,15 @@ function onPlotWheel(event) {
 }
 
 function onPlotPointerDown(event) {
-  if (event.button !== 0) {
+  if (event.pointerType === "mouse" && event.button !== 0) {
     return;
+  }
+  plotView.activePointers.set(event.pointerId, {
+    x: event.clientX,
+    y: event.clientY,
+  });
+  if (plotView.activePointers.size === 2) {
+    beginPinchGesture();
   }
   if (event.target instanceof Element && event.target.classList.contains("dot")) {
     plotView.pointerDown = false;
@@ -809,6 +821,18 @@ function onPlotPointerDown(event) {
 }
 
 function onPlotPointerMove(event) {
+  if (plotView.activePointers.has(event.pointerId)) {
+    plotView.activePointers.set(event.pointerId, {
+      x: event.clientX,
+      y: event.clientY,
+    });
+  }
+
+  if (plotView.activePointers.size >= 2) {
+    updatePinchGesture();
+    return;
+  }
+
   if (plotView.pointerDown && !plotView.dragging && plotView.dragStartClient) {
     const dx = event.clientX - plotView.dragStartClient.x;
     const dy = event.clientY - plotView.dragStartClient.y;
@@ -830,6 +854,11 @@ function onPlotPointerMove(event) {
 }
 
 function onPlotPointerUp(event) {
+  plotView.activePointers.delete(event.pointerId);
+  if (plotView.activePointers.size < 2) {
+    plotView.pinchDistance = null;
+    plotView.pinchMidpoint = null;
+  }
   plotView.pointerDown = false;
   plotView.dragStartClient = null;
   if (!plotView.dragging) {
@@ -851,6 +880,10 @@ function resetPlotView() {
   plotView.dragging = false;
   plotView.dragStartClient = null;
   plotView.lastPoint = null;
+  plotView.activePointers.clear();
+  plotView.pinchDistance = null;
+  plotView.pinchScale = 1;
+  plotView.pinchMidpoint = null;
   nodes.plot.classList.remove("is-dragging");
   applyPlotTransform();
 }
@@ -886,6 +919,67 @@ function clientToSvgPoint(clientX, clientY) {
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
+}
+
+function beginPinchGesture() {
+  const [first, second] = firstTwoPointers();
+  if (!first || !second) {
+    return;
+  }
+  plotView.pointerDown = false;
+  plotView.dragging = false;
+  plotView.dragStartClient = null;
+  plotView.lastPoint = null;
+  nodes.plot.classList.remove("is-dragging");
+  plotView.pinchDistance = distanceBetween(first, second);
+  plotView.pinchScale = plotView.scale;
+  const midpointSvg = clientToSvgPoint(
+    (first.x + second.x) / 2,
+    (first.y + second.y) / 2,
+  );
+  plotView.pinchMidpoint = {
+    x: (midpointSvg.x - plotView.tx) / plotView.scale,
+    y: (midpointSvg.y - plotView.ty) / plotView.scale,
+  };
+}
+
+function updatePinchGesture() {
+  const [first, second] = firstTwoPointers();
+  if (!first || !second) {
+    return;
+  }
+  if (!plotView.pinchDistance || !plotView.pinchMidpoint) {
+    beginPinchGesture();
+    return;
+  }
+
+  const nextDistance = distanceBetween(first, second);
+  if (nextDistance <= 0) {
+    return;
+  }
+
+  const midpointClientX = (first.x + second.x) / 2;
+  const midpointClientY = (first.y + second.y) / 2;
+  const midpointSvg = clientToSvgPoint(midpointClientX, midpointClientY);
+  const nextScale = clamp(
+    plotView.pinchScale * (nextDistance / plotView.pinchDistance),
+    plotView.minScale,
+    plotView.maxScale,
+  );
+
+  plotView.scale = nextScale;
+  plotView.tx = midpointSvg.x - nextScale * plotView.pinchMidpoint.x;
+  plotView.ty = midpointSvg.y - nextScale * plotView.pinchMidpoint.y;
+  applyPlotTransform();
+}
+
+function firstTwoPointers() {
+  const pointers = Array.from(plotView.activePointers.values());
+  return [pointers[0], pointers[1]];
+}
+
+function distanceBetween(first, second) {
+  return Math.hypot(second.x - first.x, second.y - first.y);
 }
 
 function updateRootCircleScreenSize() {
