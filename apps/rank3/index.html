@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+		<meta name="author" content="Grant Barkley">
+		<meta name="description" content="Grant Barkley is a mathematician at the University of Michigan working in Lie and quiver representation theory.">
+		<meta name="keywords" content="math, barkley, grant barkley, mathematician, Michigan, Harvard, representation theory, root system, Coxeter">
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+		<title>Rank 3 Root System Viewer</title>
+		<link rel="shortcut icon" href="https://umich.edu/favicon.ico">
+		<link rel="apple-touch-icon-precomposed" href="https://umich.edu/skins/um2013/media/images/touch-icon-iphone.png">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="./styles.css">
+<script type="text/javascript" id="MathJax-script" async
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js">
+</script>
+<style>
+li + li {
+	margin-top: 20px;
+}
+</style>
+</head>
+<body>
+  <main class="layout">
+    <section class="panel controls">
+      <div class="panel-header">
+        <h1>Rank 3 Root System Viewer</h1>
+        <p>
+          Choose a preset or edit the Cartan matrix directly. The Coxeter diagram
+          and affine-slice plot update from the same rank 3 data.
+        </p>
+      </div>
+
+      <div class="summary-card">
+        <h2>Coxeter Diagram</h2>
+        <div class="diagram-frame">
+          <svg id="diagram" viewBox="0 0 360 180" aria-label="Coxeter diagram"></svg>
+        </div>
+        <p id="diagram-output" class="helper-text"></p>
+      </div>
+
+      <div class="summary-card">
+        <div class="preset-row">
+          <label>
+            <span>Preset</span>
+            <select id="preset-select"></select>
+          </label>
+          <button id="apply-preset-button" type="button">Apply Preset</button>
+        </div>
+      </div>
+
+      <div class="summary-card">
+        <h2>Diagram Controls</h2>
+        <div class="edge-grid">
+          <div class="edge-row">
+            <span class="edge-name">Edge 1-2</span>
+            <select id="edge-12"></select>
+            <button id="flip-12" class="secondary-button" type="button">Flip Arrow</button>
+          </div>
+          <div class="edge-row">
+            <span class="edge-name">Edge 2-3</span>
+            <select id="edge-23"></select>
+            <button id="flip-23" class="secondary-button" type="button">Flip Arrow</button>
+          </div>
+          <div class="edge-row">
+            <span class="edge-name">Edge 1-3</span>
+            <select id="edge-13"></select>
+            <button id="flip-13" class="secondary-button" type="button">Flip Arrow</button>
+          </div>
+        </div>
+        <p class="helper-text">
+          Labels choose the Coxeter number. For labels 4 and 6, use <code>Flip Arrow</code>
+          to swap which off-diagonal entry has larger magnitude.
+        </p>
+      </div>
+
+      <div class="summary-card">
+        <h2>Cartan Matrix</h2>
+        <div id="cartan-editor" class="matrix-editor"></div>
+        <p class="helper-text">
+          Diagonal entries stay fixed at <code>2</code>. Edit off-diagonal entries directly
+          for fully custom integer Cartan data.
+        </p>
+        <div id="cartan-output" class="matrix-output"></div>
+      </div>
+
+      <div class="summary-card">
+        <h2>Status</h2>
+        <div class="height-control">
+          <label>
+            <span>Maximum Root Height</span>
+            <input id="max-height-input" type="number" min="1" step="1" value="100">
+          </label>
+        </div>
+        <p id="status-output"></p>
+      </div>
+
+      <div class="note">
+        <p>
+          Hover a root to see its simple-root coordinates and one witness expression
+          <code>w(α_i)</code>.
+        </p>
+      </div>
+    </section>
+
+    <section class="viewer-stack">
+      <section class="panel viewer">
+        <div class="viewer-header">
+          <div>
+            <h2>Affine Slice of Positive Roots</h2>
+          <p>
+            Each positive root <code>c1 α_1 + c2 α_2 + c3 α_3</code>
+            is rescaled by <code>c1 + c2 + c3</code> so it lands in the plane
+            <code>x + y + z = 1</code>.
+          </p>
+          </div>
+          <div class="viewer-actions">
+            <div id="root-count" class="pill"></div>
+            <button id="clear-pair-button" class="secondary-button" type="button">Clear Pair</button>
+            <button id="reset-view-button" class="secondary-button" type="button">Reset View</button>
+          </div>
+        </div>
+
+        <div class="viewer-frame">
+          <svg id="plot" viewBox="0 0 720 640" aria-label="Root system plot"></svg>
+          <div id="tooltip" class="tooltip hidden"></div>
+        </div>
+      </section>
+
+      <section class="panel roots-panel">
+        <div class="roots-header">
+          <h2>Roots</h2>
+        </div>
+        <div class="root-table-wrap">
+          <table class="root-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Root</th>
+                <th>Coordinates</th>
+                <th>Witness</th>
+              </tr>
+            </thead>
+            <tbody id="root-table-body"></tbody>
+          </table>
+        </div>
+        <div class="table-actions">
+          <button id="show-more-button" class="secondary-button" type="button">Show More</button>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>
