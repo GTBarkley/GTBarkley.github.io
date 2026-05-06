@@ -448,6 +448,15 @@ button:hover {
   pointer-events: none;
 }
 
+.isotropic-cone {
+  fill: none;
+  stroke: #2f4f9d;
+  stroke-width: 3;
+  vector-effect: non-scaling-stroke;
+  opacity: 0.9;
+  pointer-events: none;
+}
+
 .triangle-fill {
   fill: var(--triangle);
   opacity: 0.7;

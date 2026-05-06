@@ -27,6 +27,16 @@ const PRESETS = {
     [0, 2, 0],
     [0, 0, 2],
   ],
+  U3: [
+    [2, -2, -2],
+    [-2, 2, -2],
+    [-2, -2, 2],
+  ],
+  "(2, 3, ∞)": [
+    [2, -1, 0],
+    [-1, 2, -2],
+    [0, -2, 2],
+  ],
 };
 
 const nodes = {
@@ -291,7 +301,7 @@ function renderAll() {
   nodes.rootCount.textContent = `${analysis.positiveRoots.length} positive roots`;
   nodes.diagramOutput.textContent = diagramSummary(cartan);
   drawDiagram(cartan);
-  drawPlot(analysis.positiveRoots);
+  drawPlot(analysis.positiveRoots, cartan);
   drawTable();
 }
 
@@ -601,7 +611,7 @@ function barycentricToCanvas([a, b, c]) {
   };
 }
 
-function drawPlot(roots) {
+function drawPlot(roots, cartan) {
   const svg = nodes.plot;
   svg.innerHTML = "";
   rootCircles = [];
@@ -636,6 +646,8 @@ function drawPlot(roots) {
       class: "triangle-edge",
     }),
   );
+
+  drawIsotropicCone(cartan);
 
   const vertexLabels = [
     { point: triangle[0], text: "α₁" },
@@ -684,6 +696,19 @@ function drawPlot(roots) {
   }
   updateRootCircleScreenSize();
   refreshLineSelectionVisuals();
+}
+
+function drawIsotropicCone(cartan) {
+  const coneData = isotropicConeData(cartan);
+  if (!coneData) {
+    return;
+  }
+
+  const path = svgElement("path", {
+    d: coneData.path,
+    class: "isotropic-cone",
+  });
+  plotLayer.append(path);
 }
 
 function simplexTriangle() {
@@ -1141,6 +1166,309 @@ function extendedLineThroughPoints(first, second, width, height) {
 
 function simpleRootSymbol(index) {
   return ["α₁", "α₂", "α₃"][index] || `α${index + 1}`;
+}
+
+function isotropicConeData(cartan) {
+  const symmetrizer = symmetrizerForCartan(cartan);
+  if (!symmetrizer) {
+    return null;
+  }
+
+  const bilinear = symmetricBilinearForm(cartan, symmetrizer);
+  const eigenvalues = jacobiEigenvalues3(bilinear);
+  const hasPositive = eigenvalues.some((value) => value > 1e-8);
+  const hasNegative = eigenvalues.some((value) => value < -1e-8);
+  if (!(hasPositive && hasNegative)) {
+    return null;
+  }
+
+  const reduced = reducedQuadraticOnSlice(bilinear);
+  if (!reduced) {
+    return null;
+  }
+
+  const { center, matrix, constant } = reduced;
+  const signedMatrix = matrix2SignNormalized(matrix, constant);
+  if (!signedMatrix) {
+    return null;
+  }
+
+  const { normalized, rhs } = signedMatrix;
+  const eig = eigenDecomposition2(normalized);
+  if (!eig || eig.values.some((value) => value <= 1e-10) || rhs <= 1e-10) {
+    return null;
+  }
+
+  const radius1 = Math.sqrt(rhs / eig.values[0]);
+  const radius2 = Math.sqrt(rhs / eig.values[1]);
+  const points = [];
+  const samples = 240;
+  for (let i = 0; i <= samples; i += 1) {
+    const theta = 2 * Math.PI * i / samples;
+    const local = {
+      x: radius1 * Math.cos(theta),
+      y: radius2 * Math.sin(theta),
+    };
+    const uv = {
+      x: center.x + eig.vectors[0].x * local.x + eig.vectors[1].x * local.y,
+      y: center.y + eig.vectors[0].y * local.x + eig.vectors[1].y * local.y,
+    };
+    const barycentric = [uv.x, uv.y, 1 - uv.x - uv.y];
+    const canvas = barycentricToCanvas(barycentric);
+    points.push(canvas);
+  }
+
+  if (points.length < 2) {
+    return null;
+  }
+
+  const path =
+    `M ${points[0].x} ${points[0].y} ` +
+    points.slice(1).map((point) => `L ${point.x} ${point.y}`).join(" ") +
+    " Z";
+
+  return { path };
+}
+
+function symmetrizerForCartan(cartan) {
+  const ratios = [null, null, null];
+  ratios[0] = { num: 1, den: 1 };
+  const queue = [0];
+
+  while (queue.length) {
+    const i = queue.shift();
+    for (let j = 0; j < 3; j += 1) {
+      if (i === j) {
+        continue;
+      }
+      const aij = cartan[i][j];
+      const aji = cartan[j][i];
+      if (aij === 0 && aji === 0) {
+        continue;
+      }
+      if (aij === 0 || aji === 0) {
+        return null;
+      }
+      const candidate = multiplyFraction(ratios[i], { num: Math.abs(aji), den: Math.abs(aij) });
+      if (!ratios[j]) {
+        ratios[j] = candidate;
+        queue.push(j);
+      } else if (!sameFraction(ratios[j], candidate)) {
+        return null;
+      }
+    }
+  }
+
+  for (let i = 0; i < 3; i += 1) {
+    if (!ratios[i]) {
+      ratios[i] = { num: 1, den: 1 };
+    }
+  }
+
+  let lcm = 1;
+  for (const ratio of ratios) {
+    lcm = lcm2(lcm, ratio.den);
+  }
+
+  return ratios.map((ratio) => ratio.num * (lcm / ratio.den));
+}
+
+function symmetricBilinearForm(cartan, symmetrizer) {
+  const form = [];
+  for (let i = 0; i < 3; i += 1) {
+    form[i] = [];
+    for (let j = 0; j < 3; j += 1) {
+      form[i][j] = symmetrizer[i] * cartan[i][j];
+    }
+  }
+  return form;
+}
+
+function reducedQuadraticOnSlice(bilinear) {
+  const basis1 = [1, 0, -1];
+  const basis2 = [0, 1, -1];
+  const z0 = [0, 0, 1];
+
+  const matrix = [
+    [quadraticPair(basis1, bilinear, basis1), quadraticPair(basis1, bilinear, basis2)],
+    [quadraticPair(basis2, bilinear, basis1), quadraticPair(basis2, bilinear, basis2)],
+  ];
+  const linear = [
+    2 * quadraticPair(basis1, bilinear, z0),
+    2 * quadraticPair(basis2, bilinear, z0),
+  ];
+  const constant = quadraticPair(z0, bilinear, z0);
+
+  const inverse = invert2(matrix);
+  if (!inverse) {
+    return null;
+  }
+
+  const center = {
+    x: -0.5 * (inverse[0][0] * linear[0] + inverse[0][1] * linear[1]),
+    y: -0.5 * (inverse[1][0] * linear[0] + inverse[1][1] * linear[1]),
+  };
+  const shiftedConstant =
+    evaluateQuadratic2(matrix, center, center) +
+    linear[0] * center.x +
+    linear[1] * center.y +
+    constant;
+
+  return {
+    center,
+    matrix,
+    constant: shiftedConstant,
+  };
+}
+
+function matrix2SignNormalized(matrix, constant) {
+  const det = matrix[0][0] * matrix[1][1] - matrix[0][1] * matrix[1][0];
+  const trace = matrix[0][0] + matrix[1][1];
+  if (Math.abs(det) < 1e-10) {
+    return null;
+  }
+  const positiveDefinite = det > 0 && trace > 0;
+  const negativeDefinite = det > 0 && trace < 0;
+  if (!positiveDefinite && !negativeDefinite) {
+    return null;
+  }
+
+  const sign = positiveDefinite ? 1 : -1;
+  const rhs = -sign * constant;
+  if (rhs <= 1e-10) {
+    return null;
+  }
+
+  return {
+    normalized: [
+      [sign * matrix[0][0], sign * matrix[0][1]],
+      [sign * matrix[1][0], sign * matrix[1][1]],
+    ],
+    rhs,
+  };
+}
+
+function quadraticPair(left, matrix, right) {
+  let total = 0;
+  for (let i = 0; i < left.length; i += 1) {
+    for (let j = 0; j < right.length; j += 1) {
+      total += left[i] * matrix[i][j] * right[j];
+    }
+  }
+  return total;
+}
+
+function evaluateQuadratic2(matrix, left, right) {
+  return (
+    left.x * (matrix[0][0] * right.x + matrix[0][1] * right.y) +
+    left.y * (matrix[1][0] * right.x + matrix[1][1] * right.y)
+  );
+}
+
+function invert2(matrix) {
+  const det = matrix[0][0] * matrix[1][1] - matrix[0][1] * matrix[1][0];
+  if (Math.abs(det) < 1e-10) {
+    return null;
+  }
+  return [
+    [matrix[1][1] / det, -matrix[0][1] / det],
+    [-matrix[1][0] / det, matrix[0][0] / det],
+  ];
+}
+
+function eigenDecomposition2(matrix) {
+  const a = matrix[0][0];
+  const b = matrix[0][1];
+  const d = matrix[1][1];
+  const trace = a + d;
+  const delta = Math.sqrt((a - d) * (a - d) + 4 * b * b);
+  const lambda1 = 0.5 * (trace - delta);
+  const lambda2 = 0.5 * (trace + delta);
+  return {
+    values: [lambda1, lambda2],
+    vectors: [
+      normalizeVector2(Math.abs(b) > 1e-10 ? { x: b, y: lambda1 - a } : { x: 1, y: 0 }),
+      normalizeVector2(Math.abs(b) > 1e-10 ? { x: b, y: lambda2 - a } : { x: 0, y: 1 }),
+    ],
+  };
+}
+
+function normalizeVector2(vector) {
+  const length = Math.hypot(vector.x, vector.y);
+  if (length <= 1e-10) {
+    return { x: 1, y: 0 };
+  }
+  return {
+    x: vector.x / length,
+    y: vector.y / length,
+  };
+}
+
+function jacobiEigenvalues3(matrix) {
+  const a = matrix.map((row) => row.slice());
+  for (let iter = 0; iter < 24; iter += 1) {
+    let p = 0;
+    let q = 1;
+    let max = Math.abs(a[0][1]);
+    for (const [i, j] of [[0, 2], [1, 2]]) {
+      if (Math.abs(a[i][j]) > max) {
+        max = Math.abs(a[i][j]);
+        p = i;
+        q = j;
+      }
+    }
+    if (max < 1e-10) {
+      break;
+    }
+    const theta = (a[q][q] - a[p][p]) / (2 * a[p][q]);
+    const t = Math.sign(theta || 1) / (Math.abs(theta) + Math.sqrt(theta * theta + 1));
+    const c = 1 / Math.sqrt(t * t + 1);
+    const s = t * c;
+    const app = a[p][p];
+    const aqq = a[q][q];
+    const apq = a[p][q];
+    a[p][p] = app - t * apq;
+    a[q][q] = aqq + t * apq;
+    a[p][q] = 0;
+    a[q][p] = 0;
+    for (let r = 0; r < 3; r += 1) {
+      if (r !== p && r !== q) {
+        const arp = a[r][p];
+        const arq = a[r][q];
+        a[r][p] = c * arp - s * arq;
+        a[p][r] = a[r][p];
+        a[r][q] = s * arp + c * arq;
+        a[q][r] = a[r][q];
+      }
+    }
+  }
+  return [a[0][0], a[1][1], a[2][2]];
+}
+
+function multiplyFraction(left, right) {
+  const num = left.num * right.num;
+  const den = left.den * right.den;
+  const g = gcd2(num, den);
+  return { num: num / g, den: den / g };
+}
+
+function sameFraction(left, right) {
+  return left.num * right.den === right.num * left.den;
+}
+
+function gcd2(a, b) {
+  let x = Math.abs(a);
+  let y = Math.abs(b);
+  while (y !== 0) {
+    const t = x % y;
+    x = y;
+    y = t;
+  }
+  return x || 1;
+}
+
+function lcm2(a, b) {
+  return Math.abs(a * b) / gcd2(a, b);
 }
 
 function farthestPair(points) {
