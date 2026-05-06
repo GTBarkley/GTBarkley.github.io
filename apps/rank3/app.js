@@ -603,8 +603,8 @@ function barycentricToCanvas([a, b, c]) {
   const height = 640;
   const side = Math.min(width - 2 * margin, (height - 2 * margin) / 0.8660254037844386);
   const p1 = { x: margin, y: margin + side * 0.8660254037844386 };
-  const p2 = { x: margin + side, y: margin + side * 0.8660254037844386 };
-  const p3 = { x: margin + side / 2, y: margin };
+  const p2 = { x: margin + side / 2, y: margin };
+  const p3 = { x: margin + side, y: margin + side * 0.8660254037844386 };
   return {
     x: a * p1.x + b * p2.x + c * p3.x,
     y: a * p1.y + b * p2.y + c * p3.y,
@@ -658,7 +658,7 @@ function drawPlot(roots, cartan) {
   for (const label of vertexLabels) {
     const text = svgElement("text", {
       x: label.point.x,
-      y: label.point.y + (label.text === "α₃" ? -16 : 24),
+      y: label.point.y + (label.text === "α₂" ? -16 : 24),
       class: "plot-label",
       "text-anchor": "middle",
     });
@@ -1175,10 +1175,7 @@ function isotropicConeData(cartan) {
   }
 
   const bilinear = symmetricBilinearForm(cartan, symmetrizer);
-  const eigenvalues = jacobiEigenvalues3(bilinear);
-  const hasPositive = eigenvalues.some((value) => value > 1e-8);
-  const hasNegative = eigenvalues.some((value) => value < -1e-8);
-  if (!(hasPositive && hasNegative)) {
+  if (!isIndefiniteSymmetric3(bilinear)) {
     return null;
   }
 
@@ -1443,6 +1440,23 @@ function jacobiEigenvalues3(matrix) {
     }
   }
   return [a[0][0], a[1][1], a[2][2]];
+}
+
+function isIndefiniteSymmetric3(matrix) {
+  const d1 = matrix[0][0];
+  const d2 = matrix[0][0] * matrix[1][1] - matrix[0][1] * matrix[1][0];
+  const d3 =
+    matrix[0][0] * (matrix[1][1] * matrix[2][2] - matrix[1][2] * matrix[2][1]) -
+    matrix[0][1] * (matrix[1][0] * matrix[2][2] - matrix[1][2] * matrix[2][0]) +
+    matrix[0][2] * (matrix[1][0] * matrix[2][1] - matrix[1][1] * matrix[2][0]);
+
+  const positiveDefinite = d1 > 1e-8 && d2 > 1e-8 && d3 > 1e-8;
+  const negativeDefinite = d1 < -1e-8 && d2 > 1e-8 && d3 < -1e-8;
+  if (positiveDefinite || negativeDefinite) {
+    return false;
+  }
+
+  return Math.abs(d3) > 1e-8;
 }
 
 function multiplyFraction(left, right) {
