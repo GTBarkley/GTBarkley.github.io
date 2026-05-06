@@ -433,14 +433,14 @@ function vectorKey(vector) {
 }
 
 function rootLabel(vector) {
-  return `${vector[0]} α_1 + ${vector[1]} α_2 + ${vector[2]} α_3`;
+  return `${vector[0]} α₁ + ${vector[1]} α₂ + ${vector[2]} α₃`;
 }
 
 function witnessLabel(entry) {
   const action = entry.word.length
     ? entry.word.map((index) => `s${index + 1}`).join(" ")
     : "id";
-  return `${action}(α_${entry.source + 1})`;
+  return `${action}(${simpleRootSymbol(entry.source)})`;
 }
 
 function formatMatrix(matrix) {
@@ -638,15 +638,15 @@ function drawPlot(roots) {
   );
 
   const vertexLabels = [
-    { point: triangle[0], text: "α_1" },
-    { point: triangle[1], text: "α_2" },
-    { point: triangle[2], text: "α_3" },
+    { point: triangle[0], text: "α₁" },
+    { point: triangle[1], text: "α₂" },
+    { point: triangle[2], text: "α₃" },
   ];
 
   for (const label of vertexLabels) {
     const text = svgElement("text", {
       x: label.point.x,
-      y: label.point.y - (label.text === "alpha_3" ? 16 : -24),
+      y: label.point.y + (label.text === "α₃" ? -16 : 24),
       class: "plot-label",
       "text-anchor": "middle",
     });
@@ -1137,6 +1137,10 @@ function extendedLineThroughPoints(first, second, width, height) {
     x2: end.x,
     y2: end.y,
   };
+}
+
+function simpleRootSymbol(index) {
+  return ["α₁", "α₂", "α₃"][index] || `α${index + 1}`;
 }
 
 function farthestPair(points) {
