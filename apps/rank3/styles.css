@@ -423,7 +423,12 @@ button:hover {
   stroke: var(--dot-stroke);
   stroke-width: 2;
   vector-effect: non-scaling-stroke;
+  outline: none;
   transition: r 120ms ease, fill 120ms ease;
+}
+
+.dot:focus {
+  outline: none;
 }
 
 .dot:hover,
