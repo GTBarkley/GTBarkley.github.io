@@ -163,13 +163,7 @@ function onArrangementViewToggle() {
 }
 
 function onSelectRank2Toggle() {
-  selectRank2Enabled = nodes.selectRank2Toggle.checked;
-  if (selectedRootIndices.length > 2) {
-    selectedRootIndices = [];
-  }
-  recomputeLineSelection();
-  refreshLineSelectionVisuals();
-  drawTable();
+  setSelectRank2Enabled(nodes.selectRank2Toggle.checked);
 }
 
 function setupPresetMenu() {
@@ -412,16 +406,20 @@ function createViewerApp() {
       currentRoots,
       highlightedLineRootIndices,
       selectedRootIndices,
+      selectRank2Enabled,
       visibleRootCount,
     }),
+    getPresetName: () => nodes.presetSelect?.value || "",
     readMatrix,
     readMaxHeight,
     renderAll,
     decorateRoot,
     reflect,
     isPositive,
+    selectRootsByKeys,
     setTitle: setViewerTitle,
     setTitleSuffix: (suffix = "") => setViewerTitle(`${BASE_VIEWER_TITLE}${suffix}`),
+    setSelectRank2Enabled,
     validateCartan,
     vectorKey,
   };
@@ -463,6 +461,40 @@ function setViewerTitle(title) {
   if (nodes.viewerTitle) {
     nodes.viewerTitle.textContent = title;
   }
+}
+
+function setSelectRank2Enabled(enabled) {
+  selectRank2Enabled = Boolean(enabled);
+  if (nodes.selectRank2Toggle) {
+    nodes.selectRank2Toggle.checked = selectRank2Enabled;
+  }
+  if (selectedRootIndices.length > 2 && selectRank2Enabled) {
+    selectedRootIndices = [];
+  }
+  recomputeLineSelection();
+  refreshLineSelectionVisuals();
+  drawTable();
+}
+
+function selectRootsByKeys(keys, options = {}) {
+  const { reveal = true } = options;
+  const keySet = new Set(keys);
+  if (reveal) {
+    for (const key of keySet) {
+      hiddenRootKeys.delete(key);
+    }
+  }
+  selectedRootIndices = currentRoots
+    .map((root, index) => ({ root, index }))
+    .filter(({ root }) => keySet.has(vectorKey(root.vector)) && isRootVisible(root))
+    .map(({ index }) => index);
+  if (selectRank2Enabled && selectedRootIndices.length > 2) {
+    selectedRootIndices = [];
+  }
+  recomputeLineSelection();
+  refreshRootVisibilityVisuals();
+  refreshLineSelectionVisuals();
+  drawTable();
 }
 
 function analyzeRootSystem(cartan, maxHeight) {
@@ -809,7 +841,7 @@ function drawPlot(roots, cartan) {
   );
 
   const coneData = drawIsotropicCone(cartan);
-  nodes.arrangementViewToggle.disabled = !coneData;
+  nodes.arrangementViewToggle.parentElement.hidden = !coneData;
   nodes.arrangementViewToggle.checked = coneData ? arrangementViewEnabled : false;
   if (!coneData && arrangementViewEnabled) {
     arrangementViewEnabled = false;

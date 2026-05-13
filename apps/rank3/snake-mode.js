@@ -11,7 +11,12 @@
       document.body.dataset.viewerMode = "snake";
       app.setTitleSuffix(" (Snake Mode)");
       addViardToggle(app);
+      addIndex6Button(app);
       addViardWindowControl(app);
+      syncIndex6Button(app);
+    },
+    afterRender(app) {
+      syncIndex6Button(app);
     },
     transformAnalysis(app, { value, cartan }) {
       if (!viardModeEnabled) {
@@ -92,6 +97,22 @@
     diagramSummary.insertAdjacentElement("afterend", card);
   }
 
+  function addIndex6Button(app) {
+    const arrangementToggle = app.nodes.arrangementViewToggle;
+    const modeRow = arrangementToggle?.closest(".plot-mode-row");
+    if (!modeRow || document.getElementById("index-6-button")) {
+      return;
+    }
+
+    const button = document.createElement("button");
+    button.id = "index-6-button";
+    button.type = "button";
+    button.className = "secondary-button";
+    button.textContent = "U3";
+    button.addEventListener("click", () => selectIndex6Subsystem(app));
+    modeRow.append(button);
+  }
+
   function computeViardAnalysis(app, cartan) {
     const requestedCount = readViardWindow(app);
     viardWindowValue = String(requestedCount);
@@ -134,6 +155,15 @@
     if (!card && !standardHeightCard) {
       return;
     }
+  }
+
+  function syncIndex6Button(app) {
+    const button = document.getElementById("index-6-button");
+    if (!button) {
+      return;
+    }
+    const showingPreset = app.getPresetName() === "triangle_2_3_inf";
+    button.hidden = !showingPreset;
   }
 
   function computeViardEntries(app, cartan, requestedCount, safetyCap) {
@@ -194,5 +224,74 @@
       orderedEntries.push(entry);
       return true;
     }
+  }
+
+  function selectIndex6Subsystem(app) {
+    const cartan = app.readMatrix();
+    const currentRoots = app.getState().currentRoots;
+    const availableKeys = new Set(currentRoots.map((root) => app.vectorKey(root.vector)));
+    const subgroupRoots = computeIndex6SubsystemRootKeys(app, cartan, availableKeys);
+    app.setSelectRank2Enabled(false);
+    app.selectRootsByKeys(subgroupRoots, { reveal: true });
+  }
+
+  function computeIndex6SubsystemRootKeys(app, cartan, availableKeys) {
+    const generators = [
+      [2],
+      [1, 2, 1],
+      [0, 1, 2, 1, 0],
+    ];
+    const seedVectors = [
+      [0, 0, 1],
+      applyWord(app, [1], [0, 0, 1], cartan),
+      applyWord(app, [1, 0], [0, 0, 1], cartan),
+    ];
+    const selectedPositiveKeys = new Set();
+    const queue = [];
+
+    for (const seedVector of seedVectors) {
+      enqueuePositive(seedVector);
+    }
+
+    for (let head = 0; head < queue.length; head += 1) {
+      const vector = queue[head];
+      for (const word of generators) {
+        enqueuePositive(applyWord(app, word, vector, cartan));
+      }
+    }
+
+    return Array.from(selectedPositiveKeys);
+
+    function enqueuePositive(vector) {
+      const positiveVector = positiveRepresentative(app, vector);
+      if (!positiveVector) {
+        return;
+      }
+      const positiveKey = app.vectorKey(positiveVector);
+      if (selectedPositiveKeys.has(positiveKey) || !availableKeys.has(positiveKey)) {
+        return;
+      }
+      selectedPositiveKeys.add(positiveKey);
+      queue.push(positiveVector);
+    }
+  }
+
+  function applyWord(app, word, vector, cartan) {
+    let next = vector.slice();
+    for (const reflection of word) {
+      next = app.reflect(next, reflection, cartan);
+    }
+    return next;
+  }
+
+  function positiveRepresentative(app, vector) {
+    if (app.isPositive(vector)) {
+      return vector;
+    }
+    const negated = vector.map((value) => -value);
+    if (app.isPositive(negated)) {
+      return negated;
+    }
+    return null;
   }
 }());
