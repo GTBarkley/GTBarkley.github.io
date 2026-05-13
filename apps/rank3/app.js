@@ -80,6 +80,7 @@ const nodes = {
   plot: document.getElementById("plot"),
   tooltip: document.getElementById("tooltip"),
   rootCount: document.getElementById("root-count"),
+  arrangementViewToggle: document.getElementById("arrangement-view-toggle"),
   clearPairButton: document.getElementById("clear-pair-button"),
   resetViewButton: document.getElementById("reset-view-button"),
   rootTableBody: document.getElementById("root-table-body"),
@@ -92,9 +93,11 @@ let visibleRootCount = ROOTS_PAGE_SIZE;
 let currentRoots = [];
 let plotLayer = null;
 let rootCircles = [];
+let dualLineElements = [];
 let currentLineElement = null;
 let selectedRootIndices = [];
 let highlightedLineRootIndices = new Set();
+let arrangementViewEnabled = false;
 const plotView = {
   scale: 1,
   tx: 0,
@@ -131,8 +134,14 @@ function setupControls() {
   nodes.clearPairButton.addEventListener("click", clearLineSelection);
   nodes.resetViewButton.addEventListener("click", resetPlotView);
   nodes.maxHeightInput.addEventListener("input", renderAll);
+  nodes.arrangementViewToggle.addEventListener("change", onArrangementViewToggle);
 
   applyPreset();
+}
+
+function onArrangementViewToggle() {
+  arrangementViewEnabled = nodes.arrangementViewToggle.checked;
+  renderAll({ preserveSelection: true });
 }
 
 function setupPresetMenu() {
@@ -317,13 +326,28 @@ function detectEdgeLabel(aij, aji) {
   return "custom";
 }
 
-function renderAll() {
+function renderAll(options = {}) {
+  const { preserveSelection = false } = options;
+  const preservedSelectionKeys = preserveSelection
+    ? selectedRootIndices
+      .map((index) => currentRoots[index])
+      .filter(Boolean)
+      .map((root) => vectorKey(root.vector))
+    : [];
   const cartan = readMatrix();
   const analysis = analyzeRootSystem(cartan, readMaxHeight());
   currentRoots = analysis.positiveRoots;
   visibleRootCount = ROOTS_PAGE_SIZE;
-  selectedRootIndices = [];
-  highlightedLineRootIndices = new Set();
+  if (preserveSelection) {
+    selectedRootIndices = preservedSelectionKeys
+      .map((key) => currentRoots.findIndex((root) => vectorKey(root.vector) === key))
+      .filter((index) => index >= 0)
+      .slice(0, 2);
+    recomputeLineSelection();
+  } else {
+    selectedRootIndices = [];
+    highlightedLineRootIndices = new Set();
+  }
   currentLineElement = null;
   drawMatrixOutput(cartan);
   nodes.statusOutput.textContent = analysis.status;
@@ -644,6 +668,7 @@ function drawPlot(roots, cartan) {
   const svg = nodes.plot;
   svg.innerHTML = "";
   rootCircles = [];
+  dualLineElements = [];
   currentLineElement = null;
   plotLayer = svgElement("g", {});
   svg.append(plotLayer);
@@ -676,7 +701,16 @@ function drawPlot(roots, cartan) {
     }),
   );
 
-  drawIsotropicCone(cartan);
+  const coneData = drawIsotropicCone(cartan);
+  nodes.arrangementViewToggle.disabled = !coneData;
+  nodes.arrangementViewToggle.checked = coneData ? arrangementViewEnabled : false;
+  if (!coneData && arrangementViewEnabled) {
+    arrangementViewEnabled = false;
+    nodes.arrangementViewToggle.checked = false;
+  }
+  if (coneData) {
+    drawDualHyperplanes(roots, coneData);
+  }
 
   const vertexLabels = [
     { point: triangle[0], text: "α₁" },
@@ -730,7 +764,7 @@ function drawPlot(roots, cartan) {
 function drawIsotropicCone(cartan) {
   const coneData = isotropicConeData(cartan);
   if (!coneData) {
-    return;
+    return null;
   }
 
   const path = svgElement("path", {
@@ -738,6 +772,118 @@ function drawIsotropicCone(cartan) {
     class: "isotropic-cone",
   });
   plotLayer.append(path);
+  return coneData;
+}
+
+function drawDualHyperplanes(roots, coneData) {
+  for (const [index, root] of roots.entries()) {
+    const segment = dualSegmentForRoot(root.vector, coneData);
+    if (!segment) {
+      dualLineElements[index] = null;
+      continue;
+    }
+    const lineGeometry = arrangementViewEnabled
+      ? extendedLineThroughPoints(segment.start, segment.end, 720, 640)
+      : {
+          x1: segment.start.x,
+          y1: segment.start.y,
+          x2: segment.end.x,
+          y2: segment.end.y,
+        };
+    if (!lineGeometry) {
+      dualLineElements[index] = null;
+      continue;
+    }
+    const line = svgElement("line", {
+      x1: lineGeometry.x1,
+      y1: lineGeometry.y1,
+      x2: lineGeometry.x2,
+      y2: lineGeometry.y2,
+      class: "dual-hyperplane",
+    });
+    if (arrangementViewEnabled) {
+      line.classList.add("arrangement-view");
+    }
+    plotLayer.append(line);
+    dualLineElements[index] = line;
+  }
+}
+
+function dualSegmentForRoot(rootVector, coneData) {
+  const { bilinear, reduced } = coneData;
+  const { basis1, basis2, z0, matrix, linear, constant } = reduced;
+  const lineA = quadraticPair(rootVector, bilinear, basis1);
+  const lineB = quadraticPair(rootVector, bilinear, basis2);
+  const lineC = quadraticPair(rootVector, bilinear, z0);
+  const epsilon = 1e-9;
+
+  if (Math.abs(lineA) < epsilon && Math.abs(lineB) < epsilon) {
+    return null;
+  }
+
+  const direction = normalizeVector2({ x: lineB, y: -lineA });
+  let basePoint;
+  if (Math.abs(lineA) >= Math.abs(lineB)) {
+    basePoint = { x: -lineC / lineA, y: 0 };
+  } else {
+    basePoint = { x: 0, y: -lineC / lineB };
+  }
+
+  const quad = evaluateQuadratic2(matrix, direction, direction);
+  const mixed =
+    2 * evaluateQuadratic2(matrix, basePoint, direction) +
+    linear[0] * direction.x +
+    linear[1] * direction.y;
+  const offset =
+    evaluateQuadratic2(matrix, basePoint, basePoint) +
+    linear[0] * basePoint.x +
+    linear[1] * basePoint.y +
+    constant;
+
+  const parameters = solveQuadraticReal(quad, mixed, offset);
+  if (!parameters || parameters.length === 0) {
+    return null;
+  }
+
+  const points = parameters
+    .map((t) => ({
+      x: basePoint.x + direction.x * t,
+      y: basePoint.y + direction.y * t,
+    }))
+    .map(sliceCoordinatesToCanvasPoint);
+
+  if (points.length === 1) {
+    return { start: points[0], end: points[0] };
+  }
+
+  return { start: points[0], end: points[1] };
+}
+
+function solveQuadraticReal(a, b, c) {
+  const epsilon = 1e-9;
+  if (Math.abs(a) < epsilon) {
+    if (Math.abs(b) < epsilon) {
+      return null;
+    }
+    return [-c / b];
+  }
+
+  const discriminant = b * b - 4 * a * c;
+  if (discriminant < -epsilon) {
+    return null;
+  }
+  if (Math.abs(discriminant) <= epsilon) {
+    return [-b / (2 * a)];
+  }
+
+  const sqrtDiscriminant = Math.sqrt(discriminant);
+  const t1 = (-b - sqrtDiscriminant) / (2 * a);
+  const t2 = (-b + sqrtDiscriminant) / (2 * a);
+  return t1 <= t2 ? [t1, t2] : [t2, t1];
+}
+
+function sliceCoordinatesToCanvasPoint(point) {
+  return barycentricToCanvas([point.x, point.y, 1 - point.x - point.y]);
 }
 
 function simplexTriangle() {
@@ -793,6 +939,7 @@ function showMoreRoots() {
 
 function showTooltip(event, text, circle) {
   circle.classList.add("active");
+  setDualLineActive(circle, true);
   updateCircleRadius(circle);
   nodes.tooltip.textContent = text;
   nodes.tooltip.classList.remove("hidden");
@@ -801,6 +948,7 @@ function showTooltip(event, text, circle) {
 
 function showTooltipAtCircle(text, circle) {
   circle.classList.add("active");
+  setDualLineActive(circle, true);
   updateCircleRadius(circle);
   nodes.tooltip.textContent = text;
   nodes.tooltip.classList.remove("hidden");
@@ -822,8 +970,20 @@ function moveTooltip(event) {
 
 function hideTooltip(circle) {
   circle.classList.remove("active");
+  setDualLineActive(circle, false);
   updateCircleRadius(circle);
   nodes.tooltip.classList.add("hidden");
+}
+
+function setDualLineActive(circle, active) {
+  const index = Number(circle.dataset.index);
+  if (!Number.isInteger(index)) {
+    return;
+  }
+  const dualLine = dualLineElements[index];
+  if (dualLine) {
+    dualLine.classList.toggle("active", active);
+  }
 }
 
 function setupPlotInteractions() {
@@ -1116,8 +1276,16 @@ function refreshLineSelectionVisuals() {
 
   for (let i = 0; i < rootCircles.length; i += 1) {
     const circle = rootCircles[i];
-    circle.classList.toggle("selected", selectedRootIndices.includes(i));
-    circle.classList.toggle("line-member", highlightedLineRootIndices.has(i) && !selectedRootIndices.includes(i));
+    const isSelected = selectedRootIndices.includes(i);
+    const isLineMember = highlightedLineRootIndices.has(i) && !isSelected;
+    circle.classList.toggle("arrangement-muted", arrangementViewEnabled);
+    circle.classList.toggle("selected", isSelected);
+    circle.classList.toggle("line-member", isLineMember);
+    const dualLine = dualLineElements[i];
+    if (dualLine) {
+      dualLine.classList.toggle("selected", isSelected);
+      dualLine.classList.toggle("line-member", isLineMember);
+    }
     updateCircleRadius(circle);
   }
 
@@ -1213,8 +1381,8 @@ function isotropicConeData(cartan) {
     return null;
   }
 
-  const { center, matrix, constant } = reduced;
-  const signedMatrix = matrix2SignNormalized(matrix, constant);
+  const { center, matrix, shiftedConstant } = reduced;
+  const signedMatrix = matrix2SignNormalized(matrix, shiftedConstant);
   if (!signedMatrix) {
     return null;
   }
@@ -1253,7 +1421,7 @@ function isotropicConeData(cartan) {
     points.slice(1).map((point) => `L ${point.x} ${point.y}`).join(" ") +
     " Z";
 
-  return { path };
+  return { path, bilinear, reduced };
 }
 
 function symmetrizerForCartan(cartan) {
@@ -1341,9 +1509,14 @@ function reducedQuadraticOnSlice(bilinear) {
     constant;
 
   return {
+    basis1,
+    basis2,
+    z0,
     center,
     matrix,
-    constant: shiftedConstant,
+    linear,
+    constant,
+    shiftedConstant,
   };
 }
 
