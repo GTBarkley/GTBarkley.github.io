@@ -2,46 +2,70 @@ const EDGE_LABELS = [2, 3, 4, 6, "inf", "custom"];
 const EDGE_KEYS = ["12", "23", "13"];
 
 const PRESETS = {
-  A3: [
-    [2, -1, 0],
-    [-1, 2, -1],
-    [0, -1, 2],
-  ],
-  B3: [
-    [2, -1, 0],
-    [-1, 2, -2],
-    [0, -1, 2],
-  ],
-  C3: [
-    [2, -2, 0],
-    [-1, 2, -1],
-    [0, -1, 2],
-  ],
-  "Ã2": [
-    [2, -1, -1],
-    [-1, 2, -1],
-    [-1, -1, 2],
-  ],
-  "C̃2": [
-    [2, -2, 0],
-    [-1, 2, -1],
-    [0, -2, 2],
-  ],
-  "G̃2": [
-    [2, -1, 0],
-    [-1, 2, -3],
-    [0, -1, 2],
-  ],
-  U3: [
-    [2, -2, -2],
-    [-2, 2, -2],
-    [-2, -2, 2],
-  ],
-  "(2, 3, ∞)": [
-    [2, -1, 0],
-    [-1, 2, -2],
-    [0, -2, 2],
-  ],
+  A3: {
+    label: "A3",
+    matrix: [
+      [2, -1, 0],
+      [-1, 2, -1],
+      [0, -1, 2],
+    ],
+  },
+  B3: {
+    label: "B3",
+    matrix: [
+      [2, -1, 0],
+      [-1, 2, -1],
+      [0, -2, 2],
+    ],
+  },
+  C3: {
+    label: "C3",
+    matrix: [
+      [2, -1, 0],
+      [-2, 2, -1],
+      [0, -1, 2],
+    ],
+  },
+  A_tilde_2: {
+    label: "Ã2",
+    matrix: [
+      [2, -1, -1],
+      [-1, 2, -1],
+      [-1, -1, 2],
+    ],
+  },
+  C_tilde_2: {
+    label: "C̃2",
+    matrix: [
+      [2, -1, 0],
+      [-2, 2, -2],
+      [0, -1, 2],
+    ],
+  },
+  G_tilde_2: {
+    label: "G̃2",
+    matrix: [
+      [2, -1, 0],
+      [-1, 2, -1],
+      [0, -3, 2],
+    ],
+  },
+  U3: {
+    label: "U3",
+    matrix: [
+      [2, -2, -2],
+      [-2, 2, -2],
+      [-2, -2, 2],
+    ],
+  },
+  triangle_2_3_inf: {
+    label: "(2, 3, ∞)",
+    matrix: [
+      [2, -1, 0],
+      [-1, 2, -2],
+      [0, -2, 2],
+    ],
+  },
 };
 
 const nodes = {
@@ -112,10 +136,10 @@ function setupControls() {
 }
 
 function setupPresetMenu() {
-  for (const name of Object.keys(PRESETS)) {
+  for (const [name, preset] of Object.entries(PRESETS)) {
     const option = document.createElement("option");
     option.value = name;
-    option.textContent = name;
+    option.textContent = preset.label;
     nodes.presetSelect.append(option);
   }
 }
@@ -185,7 +209,7 @@ function setupMatrixEditor() {
 
 function applyPreset() {
   const preset = PRESETS[nodes.presetSelect.value] || PRESETS.A3;
-  setMatrix(cloneMatrix(preset));
+  setMatrix(cloneMatrix(preset.matrix));
   renderAll();
 }
 
@@ -396,9 +420,9 @@ function generateRoots(cartan, maxHeight, limit) {
 
 function reflect(vector, index, cartan) {
   const pairing =
-    vector[0] * cartan[0][index] +
-    vector[1] * cartan[1][index] +
-    vector[2] * cartan[2][index];
+    vector[0] * cartan[index][0] +
+    vector[1] * cartan[index][1] +
+    vector[2] * cartan[index][2];
   const next = vector.slice();
   next[index] -= pairing;
   return next;
@@ -485,11 +509,11 @@ function diagramSummary(cartan) {
       if (label === "inf") {
         const arrow = Math.abs(aij) === Math.abs(aji)
           ? "no arrow"
-          : Math.abs(aij) > Math.abs(aji) ? `${j + 1} <- ${i + 1}` : `${i + 1} <- ${j + 1}`;
+          : Math.abs(aij) > Math.abs(aji) ? `${i + 1} <- ${j + 1}` : `${j + 1} <- ${i + 1}`;
         return `${i + 1}-${j + 1}: label ∞, ${arrow}`;
       }
       if (label === 4 || label === 6) {
-        const arrow = Math.abs(aij) > Math.abs(aji) ? `${j + 1} <- ${i + 1}` : `${i + 1} <- ${j + 1}`;
+        const arrow = Math.abs(aij) > Math.abs(aji) ? `${i + 1} <- ${j + 1}` : `${j + 1} <- ${i + 1}`;
         return `${i + 1}-${j + 1}: label ${label}, arrow ${arrow}`;
       }
       return `${i + 1}-${j + 1}: label ${label}`;
@@ -538,7 +562,7 @@ function drawDiagram(cartan) {
 
     if (label === 4 || label === 6 || label === "inf" || label === "custom") {
       if (Math.abs(aij) !== Math.abs(aji)) {
-        const arrowToJ = Math.abs(aij) > Math.abs(aji);
+        const arrowToJ = Math.abs(aij) < Math.abs(aji);
         const arrowEnd = arrowToJ ? end : start;
         const arrowStart = arrowToJ ? start : end;
         svg.append(drawArrow(arrowStart, arrowEnd));
@@ -1251,7 +1275,7 @@ function symmetrizerForCartan(cartan) {
       if (aij === 0 || aji === 0) {
         return null;
       }
-      const candidate = multiplyFraction(ratios[i], { num: Math.abs(aji), den: Math.abs(aij) });
+      const candidate = multiplyFraction(ratios[i], { num: Math.abs(aij), den: Math.abs(aji) });
       if (!ratios[j]) {
         ratios[j] = candidate;
         queue.push(j);
