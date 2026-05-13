@@ -24,7 +24,7 @@ li + li {
   <main class="layout">
     <section class="panel controls">
       <div class="panel-header">
-        <h1>Rank 3 Root System Viewer</h1>
+        <h1 id="viewer-title">Rank 3 Root System Viewer</h1>
         <p>
           Choose a preset or edit the Cartan matrix directly. The Coxeter diagram
           and affine-slice plot will automatically update.
@@ -88,7 +88,7 @@ li + li {
         <h2>Status</h2>
         <div class="height-control">
           <label>
-            <span>Maximum Root Height</span>
+            <span id="max-height-label">Maximum Root Height</span>
             <input id="max-height-input" type="number" min="1" step="1" value="100">
           </label>
         </div>
@@ -122,6 +122,10 @@ li + li {
         </div>
 
         <div class="plot-mode-row">
+          <label class="view-toggle" for="select-rank-2-toggle">
+            <input id="select-rank-2-toggle" type="checkbox" checked>
+            <span>Select Rank 2</span>
+          </label>
           <label class="view-toggle" for="arrangement-view-toggle">
             <input id="arrangement-view-toggle" type="checkbox">
             <span>Arrangement View</span>
@@ -146,6 +150,7 @@ li + li {
                 <th>Root</th>
                 <th>Coordinates</th>
                 <th>Witness</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody id="root-table-body"></tbody>
@@ -158,6 +163,6 @@ li + li {
     </section>
   </main>
 
-  <script src="./app.js"></script>
+  <script src="./mode-loader.js"></script>
 </body>
 </html>

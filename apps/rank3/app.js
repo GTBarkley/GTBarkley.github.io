@@ -68,6 +68,12 @@ const PRESETS = {
   },
 };
 
+const BASE_VIEWER_TITLE = "Rank 3 Root System Viewer";
+const activeViewerMode = window.RootViewerMode || { name: "default" };
+const viewerExtensions = Array.isArray(window.RootViewerExtensions)
+  ? window.RootViewerExtensions.slice()
+  : [];
+
 const nodes = {
   presetSelect: document.getElementById("preset-select"),
   applyPresetButton: document.getElementById("apply-preset-button"),
@@ -76,15 +82,18 @@ const nodes = {
   diagram: document.getElementById("diagram"),
   diagramOutput: document.getElementById("diagram-output"),
   statusOutput: document.getElementById("status-output"),
+  maxHeightLabel: document.getElementById("max-height-label"),
   maxHeightInput: document.getElementById("max-height-input"),
   plot: document.getElementById("plot"),
   tooltip: document.getElementById("tooltip"),
   rootCount: document.getElementById("root-count"),
+  selectRank2Toggle: document.getElementById("select-rank-2-toggle"),
   arrangementViewToggle: document.getElementById("arrangement-view-toggle"),
   clearPairButton: document.getElementById("clear-pair-button"),
   resetViewButton: document.getElementById("reset-view-button"),
   rootTableBody: document.getElementById("root-table-body"),
   showMoreButton: document.getElementById("show-more-button"),
+  viewerTitle: document.getElementById("viewer-title"),
 };
 
 const matrixInputs = [];
@@ -97,7 +106,10 @@ let dualLineElements = [];
 let currentLineElement = null;
 let selectedRootIndices = [];
 let highlightedLineRootIndices = new Set();
+let selectRank2Enabled = true;
 let arrangementViewEnabled = false;
+let hiddenRootKeys = new Set();
+let lastCartanSignature = null;
 const plotView = {
   scale: 1,
   tx: 0,
@@ -113,6 +125,9 @@ const plotView = {
   pinchScale: 1,
   pinchMidpoint: null,
 };
+const viewerApp = createViewerApp();
+
+window.RootViewerApp = viewerApp;
 
 function edgeSelect(key) {
   return document.getElementById(`edge-${key}`);
@@ -123,6 +138,7 @@ function flipButton(key) {
 }
 
 function setupControls() {
+  runExtensionHook("beforeSetup");
   setupPresetMenu();
   setupEdgeMenus();
   setupMatrixEditor();
@@ -134,14 +150,26 @@ function setupControls() {
   nodes.clearPairButton.addEventListener("click", clearLineSelection);
   nodes.resetViewButton.addEventListener("click", resetPlotView);
   nodes.maxHeightInput.addEventListener("input", renderAll);
+  nodes.selectRank2Toggle.addEventListener("change", onSelectRank2Toggle);
   nodes.arrangementViewToggle.addEventListener("change", onArrangementViewToggle);
 
   applyPreset();
+  runExtensionHook("afterSetup");
 }
 
 function onArrangementViewToggle() {
   arrangementViewEnabled = nodes.arrangementViewToggle.checked;
   renderAll({ preserveSelection: true });
+}
+
+function onSelectRank2Toggle() {
+  selectRank2Enabled = nodes.selectRank2Toggle.checked;
+  if (selectedRootIndices.length > 2) {
+    selectedRootIndices = [];
+  }
+  recomputeLineSelection();
+  refreshLineSelectionVisuals();
+  drawTable();
 }
 
 function setupPresetMenu() {
@@ -327,6 +355,7 @@ function detectEdgeLabel(aij, aji) {
 }
 
 function renderAll(options = {}) {
+  runExtensionHook("beforeRender", { options });
   const { preserveSelection = false } = options;
   const preservedSelectionKeys = preserveSelection
     ? selectedRootIndices
@@ -335,14 +364,28 @@ function renderAll(options = {}) {
       .map((root) => vectorKey(root.vector))
     : [];
   const cartan = readMatrix();
-  const analysis = analyzeRootSystem(cartan, readMaxHeight());
+  const cartanSignature = JSON.stringify(cartan);
+  const preserveHidden = cartanSignature === lastCartanSignature;
+  const preservedHiddenKeys = preserveHidden ? new Set(hiddenRootKeys) : new Set();
+  const analysis = runExtensionPipeline(
+    "transformAnalysis",
+    analyzeRootSystem(cartan, readMaxHeight()),
+    { options, cartan },
+  );
   currentRoots = analysis.positiveRoots;
+  lastCartanSignature = cartanSignature;
+  hiddenRootKeys = new Set(
+    currentRoots
+      .map((root) => vectorKey(root.vector))
+      .filter((key) => preservedHiddenKeys.has(key)),
+  );
   visibleRootCount = ROOTS_PAGE_SIZE;
   if (preserveSelection) {
     selectedRootIndices = preservedSelectionKeys
       .map((key) => currentRoots.findIndex((root) => vectorKey(root.vector) === key))
       .filter((index) => index >= 0)
-      .slice(0, 2);
+      .filter((index) => isRootVisible(currentRoots[index]))
+      .slice(0, selectRank2Enabled ? 2 : Number.POSITIVE_INFINITY);
     recomputeLineSelection();
   } else {
     selectedRootIndices = [];
@@ -356,6 +399,70 @@ function renderAll(options = {}) {
   drawDiagram(cartan);
   drawPlot(analysis.positiveRoots, cartan);
   drawTable();
+  runExtensionHook("afterRender", { options, cartan, analysis });
+}
+
+function createViewerApp() {
+  return {
+    baseTitle: BASE_VIEWER_TITLE,
+    nodes,
+    getCurrentMode: () => activeViewerMode.name || "default",
+    getState: () => ({
+      arrangementViewEnabled,
+      currentRoots,
+      highlightedLineRootIndices,
+      selectedRootIndices,
+      visibleRootCount,
+    }),
+    readMatrix,
+    readMaxHeight,
+    renderAll,
+    decorateRoot,
+    reflect,
+    isPositive,
+    setTitle: setViewerTitle,
+    setTitleSuffix: (suffix = "") => setViewerTitle(`${BASE_VIEWER_TITLE}${suffix}`),
+    validateCartan,
+    vectorKey,
+  };
+}
+
+function runExtensionHook(name, payload = {}) {
+  for (const extension of viewerExtensions) {
+    if (typeof extension?.[name] !== "function") {
+      continue;
+    }
+    try {
+      extension[name](viewerApp, payload);
+    } catch (error) {
+      console.error(`Viewer extension hook failed: ${name}`, extension?.name || extension, error);
+    }
+  }
+}
+
+function runExtensionPipeline(name, value, payload = {}) {
+  let nextValue = value;
+  for (const extension of viewerExtensions) {
+    if (typeof extension?.[name] !== "function") {
+      continue;
+    }
+    try {
+      const result = extension[name](viewerApp, { ...payload, value: nextValue });
+      if (result !== undefined) {
+        nextValue = result;
+      }
+    } catch (error) {
+      console.error(`Viewer extension pipeline failed: ${name}`, extension?.name || extension, error);
+    }
+  }
+  return nextValue;
+}
+
+function setViewerTitle(title) {
+  document.title = title;
+  if (nodes.viewerTitle) {
+    nodes.viewerTitle.textContent = title;
+  }
 }
 
 function analyzeRootSystem(cartan, maxHeight) {
@@ -758,6 +865,7 @@ function drawPlot(roots, cartan) {
     rootCircles.push(circle);
   }
   updateRootCircleScreenSize();
+  refreshRootVisibilityVisuals();
   refreshLineSelectionVisuals();
 }
 
@@ -921,12 +1029,46 @@ function drawTable() {
   const rootsToShow = currentRoots.slice(0, visibleRootCount);
   for (const [index, root] of rootsToShow.entries()) {
     const row = document.createElement("tr");
+    row.classList.toggle("root-row-hidden", !isRootVisible(root));
+    row.classList.toggle("root-row-selected", selectedRootIndices.includes(index));
+    row.classList.toggle(
+      "root-row-line-member",
+      highlightedLineRootIndices.has(index) && !selectedRootIndices.includes(index),
+    );
     row.innerHTML = `
       <td>${index + 1}</td>
       <td><code>${root.label}</code></td>
       <td><code>(${root.vector.join(", ")})</code></td>
       <td><code>${root.witness}</code></td>
+      <td class="root-row-actions-cell"></td>
     `;
+    const actionsCell = row.querySelector(".root-row-actions-cell");
+
+    const selectButton = document.createElement("button");
+    selectButton.type = "button";
+    selectButton.className = "secondary-button root-row-button";
+    const isSelected = selectedRootIndices.includes(index);
+    selectButton.textContent = isSelected ? "Unselect" : "Select";
+    selectButton.addEventListener("click", () => {
+      if (!isRootVisible(root)) {
+        toggleRootVisibility(index);
+      }
+      onRootClick(index);
+    });
+
+    const visibilityToggle = document.createElement("label");
+    visibilityToggle.className = "root-row-visibility-toggle";
+
+    const visibilityCheckbox = document.createElement("input");
+    visibilityCheckbox.type = "checkbox";
+    visibilityCheckbox.checked = isRootVisible(root);
+    visibilityCheckbox.addEventListener("change", () => toggleRootVisibility(index));
+
+    const visibilityText = document.createElement("span");
+    visibilityText.textContent = "Visible";
+
+    visibilityToggle.append(visibilityCheckbox, visibilityText);
+    actionsCell.append(selectButton, visibilityToggle);
     nodes.rootTableBody.append(row);
   }
   nodes.showMoreButton.hidden = visibleRootCount >= currentRoots.length;
@@ -935,6 +1077,51 @@ function drawTable() {
 function showMoreRoots() {
   visibleRootCount = Math.min(visibleRootCount + ROOTS_PAGE_SIZE, currentRoots.length);
   drawTable();
+}
+
+function toggleRootVisibility(index) {
+  const root = currentRoots[index];
+  if (!root) {
+    return;
+  }
+  const key = vectorKey(root.vector);
+  if (hiddenRootKeys.has(key)) {
+    hiddenRootKeys.delete(key);
+  } else {
+    hiddenRootKeys.add(key);
+  }
+  selectedRootIndices = selectedRootIndices.filter((selectedIndex) => {
+    const selectedRoot = currentRoots[selectedIndex];
+    return selectedRoot && isRootVisible(selectedRoot);
+  });
+  recomputeLineSelection();
+  refreshRootVisibilityVisuals();
+  refreshLineSelectionVisuals();
+  drawTable();
+}
+
+function isRootVisible(root) {
+  return root ? !hiddenRootKeys.has(vectorKey(root.vector)) : false;
+}
+
+function refreshRootVisibilityVisuals() {
+  for (let i = 0; i < rootCircles.length; i += 1) {
+    const root = currentRoots[i];
+    const visible = isRootVisible(root);
+    const circle = rootCircles[i];
+    if (circle) {
+      circle.classList.toggle("is-hidden", !visible);
+      circle.setAttribute("aria-hidden", String(!visible));
+      if (!visible) {
+        circle.classList.remove("active");
+      }
+    }
+    const dualLine = dualLineElements[i];
+    if (dualLine) {
+      dualLine.classList.toggle("is-hidden", !visible);
+      dualLine.classList.remove("active");
+    }
+  }
 }
 
 function showTooltip(event, text, circle) {
@@ -1106,6 +1293,7 @@ function clearLineSelection() {
   selectedRootIndices = [];
   highlightedLineRootIndices = new Set();
   refreshLineSelectionVisuals();
+  drawTable();
 }
 
 function applyPlotTransform() {
@@ -1218,39 +1406,50 @@ function baseRadiusForRoot(root) {
 }
 
 function onRootClick(index) {
-  if (selectedRootIndices.length === 0) {
-    selectedRootIndices = [index];
-  } else if (selectedRootIndices.length === 1) {
-    if (selectedRootIndices[0] === index) {
-      selectedRootIndices = [];
+  const root = currentRoots[index];
+  if (!root || !isRootVisible(root)) {
+    return;
+  }
+  if (selectRank2Enabled) {
+    if (selectedRootIndices.length === 0) {
+      selectedRootIndices = [index];
+    } else if (selectedRootIndices.length === 1) {
+      if (selectedRootIndices[0] === index) {
+        selectedRootIndices = [];
+      } else {
+        selectedRootIndices = [selectedRootIndices[0], index];
+      }
+    } else if (selectedRootIndices.includes(index)) {
+      selectedRootIndices = [index];
     } else {
-      selectedRootIndices = [selectedRootIndices[0], index];
+      selectedRootIndices = [index];
     }
-  } else if (selectedRootIndices.includes(index)) {
-    selectedRootIndices = [index];
   } else {
-    selectedRootIndices = [index];
+    selectedRootIndices = selectedRootIndices.includes(index)
+      ? selectedRootIndices.filter((selectedIndex) => selectedIndex !== index)
+      : [...selectedRootIndices, index];
   }
 
   recomputeLineSelection();
   refreshLineSelectionVisuals();
+  drawTable();
 }
 
 function recomputeLineSelection() {
   highlightedLineRootIndices = new Set();
-  if (selectedRootIndices.length !== 2) {
+  if (!selectRank2Enabled || selectedRootIndices.length !== 2) {
     return;
   }
 
   const [firstIndex, secondIndex] = selectedRootIndices;
   const first = currentRoots[firstIndex];
   const second = currentRoots[secondIndex];
-  if (!first || !second) {
+  if (!first || !second || !isRootVisible(first) || !isRootVisible(second)) {
     return;
   }
 
   for (let i = 0; i < currentRoots.length; i += 1) {
-    if (isRootOnLine(currentRoots[i], first, second)) {
+    if (isRootVisible(currentRoots[i]) && isRootOnLine(currentRoots[i], first, second)) {
       highlightedLineRootIndices.add(i);
     }
   }
@@ -1276,6 +1475,15 @@ function refreshLineSelectionVisuals() {
 
   for (let i = 0; i < rootCircles.length; i += 1) {
     const circle = rootCircles[i];
+    if (!isRootVisible(currentRoots[i])) {
+      circle.classList.remove("selected", "line-member", "active", "arrangement-muted");
+      const dualLine = dualLineElements[i];
+      if (dualLine) {
+        dualLine.classList.remove("selected", "line-member", "active");
+      }
+      updateCircleRadius(circle);
+      continue;
+    }
     const isSelected = selectedRootIndices.includes(i);
     const isLineMember = highlightedLineRootIndices.has(i) && !isSelected;
     circle.classList.toggle("arrangement-muted", arrangementViewEnabled);
@@ -1289,11 +1497,11 @@ function refreshLineSelectionVisuals() {
     updateCircleRadius(circle);
   }
 
-  if (selectedRootIndices.length === 2) {
+  if (selectRank2Enabled && selectedRootIndices.length === 2) {
     const [firstIndex, secondIndex] = selectedRootIndices;
     const first = currentRoots[firstIndex];
     const second = currentRoots[secondIndex];
-    if (first && second && plotLayer) {
+    if (first && second && isRootVisible(first) && isRootVisible(second) && plotLayer) {
       const line = extendedLineThroughPoints(first.point, second.point, 720, 640);
       if (!line) {
         return;
