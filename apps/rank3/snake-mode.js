@@ -1,8 +1,6 @@
 (function registerSnakeMode() {
   let viardModeEnabled = false;
-  let standardMaxHeightValue = "100";
   let viardWindowValue = "10";
-  let activeWindowMode = "standard";
   const VIARD_DEFAULT_WINDOW = 10;
   const VIARD_SAFETY_CAP = 2500;
 
@@ -13,6 +11,7 @@
       document.body.dataset.viewerMode = "snake";
       app.setTitleSuffix(" (Snake Mode)");
       addViardToggle(app);
+      addViardWindowControl(app);
     },
     transformAnalysis(app, { value, cartan }) {
       if (!viardModeEnabled) {
@@ -39,7 +38,7 @@
     input.checked = viardModeEnabled;
     input.addEventListener("change", () => {
       viardModeEnabled = input.checked;
-      syncWindowMode(app);
+      syncViardWindowVisibility();
       app.renderAll({ preserveSelection: true });
     });
 
@@ -48,31 +47,49 @@
 
     label.append(input, text);
     modeRow.append(label);
-    syncWindowMode(app);
+    syncViardWindowVisibility();
   }
 
-  function syncWindowMode(app) {
-    const label = app.nodes.maxHeightLabel;
-    const input = app.nodes.maxHeightInput;
-    if (!label || !input) {
+  function addViardWindowControl(app) {
+    const diagramSummary = app.nodes.diagramOutput?.closest(".summary-card");
+    if (!diagramSummary || document.getElementById("viard-window-control")) {
       return;
     }
 
-    if (viardModeEnabled) {
-      if (activeWindowMode !== "viard") {
-        standardMaxHeightValue = input.value || standardMaxHeightValue;
+    const card = document.createElement("div");
+    card.id = "viard-window-control";
+    card.className = "summary-card";
+    card.hidden = !viardModeEnabled;
+
+    const heading = document.createElement("h2");
+    heading.textContent = "Viard Level";
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "height-control";
+
+    const label = document.createElement("label");
+
+    const input = document.createElement("input");
+    input.id = "viard-window-input";
+    input.type = "number";
+    input.min = "1";
+    input.step = "1";
+    input.value = viardWindowValue || String(VIARD_DEFAULT_WINDOW);
+    input.addEventListener("input", () => {
+      viardWindowValue = input.value || String(VIARD_DEFAULT_WINDOW);
+      if (viardModeEnabled) {
+        app.renderAll({ preserveSelection: true });
       }
-      label.textContent = "Viard Level";
-      input.value = viardWindowValue || String(VIARD_DEFAULT_WINDOW);
-      activeWindowMode = "viard";
-    } else {
-      if (activeWindowMode === "viard") {
-        viardWindowValue = input.value || viardWindowValue;
-      }
-      label.textContent = "Maximum Root Height";
-      input.value = standardMaxHeightValue || "100";
-      activeWindowMode = "standard";
-    }
+    });
+
+    const help = document.createElement("p");
+    help.className = "helper-text";
+    help.textContent = "Shows only the first N roots in Viard order.";
+
+    label.append(input);
+    wrapper.append(label);
+    card.append(heading, wrapper, help);
+    diagramSummary.insertAdjacentElement("afterend", card);
   }
 
   function computeViardAnalysis(app, cartan) {
@@ -101,8 +118,22 @@
   }
 
   function readViardWindow(app) {
-    const parsed = Number(app.nodes.maxHeightInput?.value);
+    const parsed = Number(document.getElementById("viard-window-input")?.value);
     return Number.isInteger(parsed) && parsed >= 1 ? parsed : VIARD_DEFAULT_WINDOW;
+  }
+
+  function syncViardWindowVisibility() {
+    const card = document.getElementById("viard-window-control");
+    const standardHeightCard = document.getElementById("max-height-label")?.closest(".summary-card");
+    if (card) {
+      card.hidden = !viardModeEnabled;
+    }
+    if (standardHeightCard) {
+      standardHeightCard.hidden = viardModeEnabled;
+    }
+    if (!card && !standardHeightCard) {
+      return;
+    }
   }
 
   function computeViardEntries(app, cartan, requestedCount, safetyCap) {
