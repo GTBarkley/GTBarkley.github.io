@@ -9,6 +9,7 @@ const state = {
   changedPositions: [],
   changedValues: [],
   lastReason: null,
+  activeLink: null,
 };
 
 const els = {
@@ -48,6 +49,7 @@ function cloneSnapshot() {
     changedPositions: [...state.changedPositions],
     changedValues: [...state.changedValues],
     lastReason: state.lastReason ? structuredClone(state.lastReason) : null,
+    activeLink: state.activeLink ? { ...state.activeLink } : null,
   };
 }
 
@@ -60,11 +62,13 @@ function restoreSnapshot(snapshot) {
   state.changedPositions = [...snapshot.changedPositions];
   state.changedValues = [...snapshot.changedValues];
   state.lastReason = snapshot.lastReason ? structuredClone(snapshot.lastReason) : null;
+  state.activeLink = snapshot.activeLink ? { ...snapshot.activeLink } : null;
 }
 
 function commit(mutator) {
   state.history.push(cloneSnapshot());
   state.future = [];
+  state.activeLink = null;
   mutator();
   render();
 }
@@ -81,6 +85,12 @@ function rightTransposition(perm, a, b) {
   const next = [...perm];
   [next[a - 1], next[b - 1]] = [next[b - 1], next[a - 1]];
   return next;
+}
+
+function transpositionKey(a, b) {
+  const x = Math.min(a, b);
+  const y = Math.max(a, b);
+  return `${x}-${y}`;
 }
 
 function leftTransposition(perm, a, b) {
@@ -154,6 +164,15 @@ function canonicalReducedWord(target) {
     }
   }
   return word;
+}
+
+function reflectionKeysForWord(word, n) {
+  let prefix = identity(n);
+  return word.map((simple) => {
+    const key = transpositionKey(prefix[simple - 1], prefix[simple]);
+    prefix = rightTransposition(prefix, simple, simple + 1);
+    return key;
+  });
 }
 
 function simpleHtml(i) {
@@ -283,17 +302,25 @@ function buildDeletionReason(beforeWord, afterPerm, n, label, mode = "left", fir
   };
 }
 
-function formatWord(word, emptyText = "empty word") {
+function formatWord(word, emptyText = "empty word", options = {}) {
   if (!word || !word.length) return `<span class="empty-word">${emptyText}</span>`;
-  return word.map((i) => `<span class="word-letter">${simpleHtml(i)}</span>`).join("");
+  const marks = options.marks || [];
+  const linkKeys = options.linkKeys || [];
+  return word.map((i, index) => {
+    const key = linkKeys[index];
+    const marked = marks.includes(index) ? " mark-delete" : "";
+    const selected = state.activeLink && state.activeLink.index === index && state.activeLink.key === key
+      ? " linked-selected"
+      : "";
+    const linkAttrs = options.interactive && key
+      ? ` data-word-index="${index}" data-link-key="${key}" title="Corresponding transposition (${key.replace("-", ",")})"`
+      : "";
+    return `<span class="word-letter${marked}${selected}"${linkAttrs}>${simpleHtml(i)}</span>`;
+  }).join("");
 }
 
 function formatMarkedWord(word, marks) {
-  if (!word || !word.length) return `<span class="empty-word">empty word</span>`;
-  return word.map((i, index) => {
-    const marked = marks.includes(index) ? " mark-delete" : "";
-    return `<span class="word-letter${marked}">${simpleHtml(i)}</span>`;
-  }).join("");
+  return formatWord(word, "empty word", { marks });
 }
 
 function setMessage(text, ok = false) {
@@ -344,7 +371,14 @@ function renderTranspositionButtons() {
       const delta = lengthOf(after) - beforeLength;
       const btn = document.createElement("button");
       btn.type = "button";
-      btn.className = `transposition-btn ${delta < 0 ? "lower" : delta > 0 ? "raise" : "same"}`;
+      const key = transpositionKey(a, b);
+      const linked = state.activeLink && state.activeLink.key === key ? " linked-selected" : "";
+      btn.className = `transposition-btn ${delta < 0 ? "lower" : delta > 0 ? "raise" : "same"}${linked}`;
+      btn.dataset.transpositionKey = key;
+      if (delta < 0 && !state.pendingWord && state.word) {
+        const deleteIndex = findOneDeletion(state.word, after, state.n);
+        if (deleteIndex !== null) btn.dataset.deleteWordIndex = String(deleteIndex);
+      }
       btn.innerHTML = `<span>(${a},${b})</span><small>${delta > 0 ? "+" : ""}${delta}</small>`;
       btn.title = `${state.mode} multiply by (${a},${b}); length ${delta > 0 ? "increases" : delta < 0 ? "decreases" : "does not change"} by ${Math.abs(delta)}`;
       btn.addEventListener("click", () => applyGeneralTransposition(a, b));
@@ -371,7 +405,10 @@ function renderWord() {
     els.wordDisplay.innerHTML = `<span class="empty-word">reduced word not generated yet</span>`;
     return;
   }
-  els.wordDisplay.innerHTML = formatWord(state.word);
+  els.wordDisplay.innerHTML = formatWord(state.word, "empty word", {
+    interactive: true,
+    linkKeys: reflectionKeysForWord(state.word, state.n),
+  });
 }
 
 function renderReasoning() {
@@ -443,6 +480,25 @@ function render() {
   renderFacts();
   renderWord();
   renderReasoning();
+}
+
+function setLinkedClass(key, className, enabled) {
+  if (!key) return;
+  document.querySelectorAll(`[data-link-key="${key}"], [data-transposition-key="${key}"]`).forEach((el) => {
+    el.classList.toggle(className, enabled);
+  });
+}
+
+function setWordIndexClass(index, className, enabled) {
+  if (index === undefined || index === null || index === "") return;
+  const letter = els.wordDisplay.querySelector(`[data-word-index="${index}"]`);
+  if (letter) letter.classList.toggle(className, enabled);
+}
+
+function clearHoverLinks() {
+  document.querySelectorAll(".linked-hover").forEach((el) => {
+    el.classList.remove("linked-hover");
+  });
 }
 
 function applySimple(i) {
@@ -521,12 +577,16 @@ function setPermutationFromInput(raw) {
   commit(() => {
     const beforePerm = [...state.perm];
     state.perm = parsed.values;
-    state.word = canonicalReducedWord(state.perm);
-    state.pendingWord = false;
+    state.word = null;
+    state.pendingWord = true;
     state.changedPositions = positionsChanged(beforePerm, state.perm);
     state.changedValues = [];
-    state.lastReason = { steps: [], message: "A canonical reduced word was generated for the entered permutation." };
-    setMessage("Permutation applied; a canonical reduced word was generated.", true);
+    state.lastReason = {
+      pending: true,
+      delta: lengthOf(state.perm),
+      label: "typed permutation",
+    };
+    setMessage("Permutation applied; press Generate reduced word when ready.", true);
   });
 }
 
@@ -579,11 +639,13 @@ els.redo.addEventListener("click", () => {
 
 els.leftMode.addEventListener("click", () => {
   state.mode = "left";
+  state.activeLink = null;
   render();
 });
 
 els.rightMode.addEventListener("click", () => {
   state.mode = "right";
+  state.activeLink = null;
   render();
 });
 
@@ -595,5 +657,53 @@ els.generateWord.addEventListener("click", () => {
     setMessage("Generated a reduced word.", true);
   });
 });
+
+function handleLinkHover(event) {
+  const letter = event.target.closest(".word-letter[data-link-key]");
+  if (!letter || !els.wordDisplay.contains(letter)) return;
+  setLinkedClass(letter.dataset.linkKey, "linked-hover", true);
+}
+
+function handleLinkLeave(event) {
+  const letter = event.target.closest(".word-letter[data-link-key]");
+  if (!letter || !els.wordDisplay.contains(letter)) return;
+  setLinkedClass(letter.dataset.linkKey, "linked-hover", false);
+}
+
+els.wordDisplay.addEventListener("mouseover", handleLinkHover);
+els.wordDisplay.addEventListener("pointerover", handleLinkHover);
+els.wordDisplay.addEventListener("mouseout", handleLinkLeave);
+els.wordDisplay.addEventListener("pointerout", handleLinkLeave);
+
+els.wordDisplay.addEventListener("click", (event) => {
+  const letter = event.target.closest(".word-letter[data-link-key]");
+  if (!letter || !els.wordDisplay.contains(letter)) return;
+  clearHoverLinks();
+  const index = Number(letter.dataset.wordIndex);
+  const key = letter.dataset.linkKey;
+  state.activeLink = state.activeLink && state.activeLink.key === key && state.activeLink.index === index
+    ? null
+    : { key, index };
+  render();
+});
+
+function handleTranspositionHover(event) {
+  const btn = event.target.closest(".transposition-btn.lower[data-delete-word-index]");
+  if (!btn || !els.transpositionButtons.contains(btn)) return;
+  btn.classList.add("linked-hover");
+  setWordIndexClass(btn.dataset.deleteWordIndex, "linked-hover", true);
+}
+
+function handleTranspositionLeave(event) {
+  const btn = event.target.closest(".transposition-btn.lower[data-delete-word-index]");
+  if (!btn || !els.transpositionButtons.contains(btn)) return;
+  btn.classList.remove("linked-hover");
+  setWordIndexClass(btn.dataset.deleteWordIndex, "linked-hover", false);
+}
+
+els.transpositionButtons.addEventListener("mouseover", handleTranspositionHover);
+els.transpositionButtons.addEventListener("pointerover", handleTranspositionHover);
+els.transpositionButtons.addEventListener("mouseout", handleTranspositionLeave);
+els.transpositionButtons.addEventListener("pointerout", handleTranspositionLeave);
 
 render();
