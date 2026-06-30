@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lecture 1: Permutations</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Bruhat order and applications</p>
+        <h1>Lecture 1: Permutations</h1>
+      </div>
+      <div class="top-controls">
+        <label class="select-label" for="rank-select">Group</label>
+        <select id="rank-select" aria-label="Choose symmetric group rank">
+          <option value="2">S&#8322;</option>
+          <option value="3">S&#8323;</option>
+          <option value="4" selected>S&#8324;</option>
+          <option value="5">S&#8325;</option>
+          <option value="6">S&#8326;</option>
+        </select>
+      </div>
+    </header>
+
+    <section class="workspace" aria-label="Permutation applet">
+      <section class="main-panel">
+        <div class="panel-head">
+          <div>
+            <h2>One-line notation</h2>
+            <p>Right multiplication swaps positions. Left multiplication swaps values.</p>
+          </div>
+          <div class="history-actions" aria-label="History controls">
+            <button id="undo-btn" class="icon-btn" type="button" title="Undo" aria-label="Undo">&#8630;</button>
+            <button id="redo-btn" class="icon-btn" type="button" title="Redo" aria-label="Redo">&#8631;</button>
+          </div>
+        </div>
+
+        <div id="tiles" class="tiles" aria-live="polite"></div>
+
+        <form id="perm-form" class="perm-form" novalidate>
+          <label for="perm-input">Set permutation</label>
+          <input id="perm-input" type="text" inputmode="numeric" autocomplete="off" spellcheck="false">
+          <button type="submit">Apply</button>
+          <button id="reset-btn" type="button" class="secondary">Reset</button>
+        </form>
+        <p id="input-message" class="input-message" role="status"></p>
+
+        <div class="control-card">
+          <div class="control-heading">
+            <h3>Simple reflections</h3>
+            <span>build a reduced word one simple at a time</span>
+          </div>
+          <div class="reduced-word-row">
+            <div>
+              <div class="mini-label">Reduced word</div>
+              <div id="word-display" class="word-display"></div>
+            </div>
+            <button id="generate-word-btn" class="secondary hidden" type="button">Generate reduced word</button>
+          </div>
+          <div id="simple-buttons" class="button-grid"></div>
+        </div>
+
+        <div class="control-card transposition-card">
+          <div class="control-heading">
+            <h3>Transposition</h3>
+            <span>colored by whether length goes up or down</span>
+          </div>
+          <div class="transposition-mode-row">
+            <div class="segmented" role="group" aria-label="Choose left or right multiplication">
+              <button id="left-mode" class="active" type="button">Left</button>
+              <button id="right-mode" type="button">Right</button>
+            </div>
+          </div>
+          <div id="transposition-buttons" class="transposition-grid"></div>
+        </div>
+      </section>
+
+      <aside class="side-panel" aria-label="Permutation data">
+        <section class="fact-card">
+          <h2>Current data</h2>
+          <dl class="facts">
+            <div>
+              <dt>Permutation</dt>
+              <dd id="fact-permutation"></dd>
+            </div>
+            <div>
+              <dt>Cycle notation</dt>
+              <dd id="fact-cycles"></dd>
+            </div>
+            <div>
+              <dt>Inversions</dt>
+              <dd id="fact-inversions"></dd>
+            </div>
+            <div>
+              <dt>Length</dt>
+              <dd id="fact-length"></dd>
+            </div>
+            <div>
+              <dt>Right descents</dt>
+              <dd id="fact-descents"></dd>
+            </div>
+          </dl>
+        </section>
+
+        <section class="fact-card">
+          <h2>Reasoning</h2>
+          <div id="exchange-panel" class="exchange-panel"></div>
+        </section>
+      </aside>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
