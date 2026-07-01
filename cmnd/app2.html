@@ -548,8 +548,8 @@
       </div>
       <div class="top-controls" aria-label="Group controls">
         <div class="segmented" role="group" aria-label="Choose symmetric group">
-          <button id="group-s3" class="active" type="button">S₃</button>
-          <button id="group-s4" type="button">S₄</button>
+          <button id="group-s3" class="" type="button">S₃</button>
+          <button id="group-s4" class="active" type="button">S₄</button>
         </div>
       </div>
     </header>
@@ -558,7 +558,7 @@
       <section class="main-panel">
         <div class="panel-head">
           <div>
-            <h2 id="view-title">Braid arrangement for S₃</h2>
+            <h2 id="view-title">Braid arrangement for S₄</h2>
             <p id="view-subtitle">A fixed 2D Hasse diagram; covers are w -&gt; w s_i when length increases.</p>
           </div>
           <div class="view-actions">
@@ -597,15 +597,15 @@
           <div class="metric-row" aria-label="Diagram counts">
             <div class="metric">
               <span>Vertices</span>
-              <strong id="metric-vertices">6</strong>
+              <strong id="metric-vertices">14</strong>
             </div>
             <div class="metric">
-              <span id="metric-covers-label">Lines</span>
-              <strong id="metric-covers">3</strong>
+              <span id="metric-covers-label">Planes</span>
+              <strong id="metric-covers">6</strong>
             </div>
             <div class="metric">
               <span>Rank</span>
-              <strong id="metric-rank">2</strong>
+              <strong id="metric-rank">3</strong>
             </div>
           </div>
         </section>
@@ -615,7 +615,7 @@
           <dl class="facts">
             <div>
               <dt>Permutation</dt>
-              <dd id="fact-permutation">123</dd>
+              <dd id="fact-permutation">1234</dd>
             </div>
             <div>
               <dt>Length</dt>
@@ -648,9 +648,9 @@
 
   <script>
     const state = {
-      n: 3,
-      mode: "weakOrder",
-      selectedKey: "123",
+      n: 4,
+      mode: "braidArrangement",
+      selectedKey: "1234",
       selectedRootKeys: [],
       embedding: "ranked",
       showCayley: false,
