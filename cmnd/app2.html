@@ -583,7 +583,7 @@
           <div id="scene-status" class="loading" style="display: none;">Loading diagram...</div>
           <div id="scene-hint" class="scene-hint" style="display: none;">Drag to pan. Scroll or pinch to zoom. Select a label or strip.</div>
         </div>
-        <div id="transposition-panel" class="transposition-panel" aria-label="Transpositions"><span class="transposition-title">Transpositions</span><button class="transposition-bubble " type="button" data-root="1-2" style="--root-color: #246bfe">(1,2)</button><button class="transposition-bubble " type="button" data-root="1-3" style="--root-color: #7c3aed">(1,3)</button><button class="transposition-bubble " type="button" data-root="2-3" style="--root-color: #15803d">(2,3)</button></div>
+        <div id="transposition-panel" class="transposition-panel" aria-label="Inversions"><span class="transposition-title">Inversions</span><button class="transposition-bubble " type="button" data-root="1-2" style="--root-color: #246bfe">(1,2)</button><button class="transposition-bubble " type="button" data-root="1-3" style="--root-color: #7c3aed">(1,3)</button><button class="transposition-bubble " type="button" data-root="2-3" style="--root-color: #15803d">(2,3)</button></div>
       </section>
 
       <aside class="side-panel" aria-label="Weak order data">
@@ -593,6 +593,7 @@
             <button id="mode-weak" class="" type="button">Weak order</button>
             <button id="mode-complex" type="button">Coxeter complex</button>
             <button id="mode-braid" type="button" class="active">Braid arrangement</button>
+            <button id="mode-simplex" type="button">Simplex</button>
           </div>
           <div class="metric-row" aria-label="Diagram counts">
             <div class="metric">
@@ -674,6 +675,7 @@
       pinchStartZoom: 1,
       projected: [],
       braidHitRegions: [],
+      geometryTransition: null,
     };
 
     const els = {
@@ -684,6 +686,7 @@
       s4: document.getElementById("group-s4"),
       modeWeak: document.getElementById("mode-weak"),
       modeComplex: document.getElementById("mode-complex"),
+      modeSimplex: document.getElementById("mode-simplex"),
       modeBraid: document.getElementById("mode-braid"),
       embeddingCard: document.getElementById("embedding-card"),
       embeddingRanked: document.getElementById("embedding-ranked"),
@@ -893,8 +896,14 @@
     }
 
     function selectWeakPermutation(key) {
-      state.selectedKey = key === state.selectedKey ? null : key;
-      state.selectedRootKeys = [];
+      if (key === state.selectedKey) {
+        state.selectedKey = null;
+        state.selectedRootKeys = [];
+        return;
+      }
+      state.selectedKey = key;
+      const vertex = state.graph?.byKey.get(key);
+      state.selectedRootKeys = vertex ? sortedRootKeys(vertex.inversions) : [];
     }
 
     function syncRootsFromSelectedChamber() {
@@ -907,13 +916,14 @@
     }
 
     function syncChamberFromRoots() {
-      if (!state.complex) return;
       if (!state.selectedRootKeys.length) {
         state.selectedKey = permKey(identity(state.n));
         return;
       }
-      const match = state.complex.chambers.find((chamber) =>
-        sameRootSet(state.selectedRootKeys, sortedRootKeys(chamber.inversions))
+      const candidates = isGeometryMode() ? state.complex?.chambers : state.graph?.vertices;
+      if (!candidates) return;
+      const match = candidates.find((item) =>
+        sameRootSet(state.selectedRootKeys, sortedRootKeys(item.inversions))
       );
       state.selectedKey = match ? match.key : null;
     }
@@ -1208,7 +1218,7 @@
     }
 
     function isGeometryMode() {
-      return state.mode === "coxeterComplex" || state.mode === "braidArrangement";
+      return state.mode === "coxeterComplex" || state.mode === "simplex" || state.mode === "braidArrangement";
     }
 
     function rebuildScene(reset = true) {
@@ -1224,6 +1234,7 @@
     }
 
     function resetView() {
+      state.geometryTransition = null;
       state.yaw = 0;
       state.pitch = 0;
       state.rotation = initialRotation();
@@ -1338,14 +1349,20 @@
       const graph = state.graph;
       const selected = state.selectedKey ? graph.byKey.get(state.selectedKey) : null;
       if (state.selectedKey && !selected) state.selectedKey = null;
+      if (!Array.isArray(state.selectedRootKeys)) state.selectedRootKeys = [];
+      if (selected && !sameRootSet(state.selectedRootKeys, sortedRootKeys(selected.inversions))) {
+        state.selectedRootKeys = sortedRootKeys(selected.inversions);
+      }
+      const invalidSelection = !selected && state.selectedRootKeys.length > 0;
       els.s3.classList.toggle("active", state.n === 3);
       els.s4.classList.toggle("active", state.n === 4);
       els.modeWeak.classList.add("active");
       els.modeComplex.classList.remove("active");
+      els.modeSimplex.classList.remove("active");
       els.modeBraid.classList.remove("active");
       els.embeddingCard.classList.toggle("hidden", state.n !== 4);
       els.cayleyCard.classList.add("hidden");
-      els.transpositionPanel.classList.add("hidden");
+      els.transpositionPanel.classList.remove("hidden");
       els.legendCard.classList.add("hidden");
       els.hint.style.display = "none";
       els.embeddingRanked.classList.toggle("active", state.embedding === "ranked");
@@ -1367,7 +1384,13 @@
       els.metricCoversLabel.textContent = "Covers";
       els.metricCovers.textContent = String(graph.edges.length);
       els.metricRank.textContent = String(graph.maxRank);
-      if (selected) {
+      if (invalidSelection) {
+        els.factPermutation.textContent = "none";
+        els.factLength.textContent = "--";
+        els.factDescents.innerHTML = "--";
+        els.factInversions.textContent = "--";
+        els.coverList.innerHTML = `<div class="cover-row"><b>--</b><span>Selected inversions are not an inversion set.</span></div>`;
+      } else if (selected) {
         els.factPermutation.textContent = selected.key;
         els.factLength.textContent = String(selected.rank);
         els.factDescents.innerHTML = selected.descents.length
@@ -1390,6 +1413,7 @@
       els.legend.innerHTML = Array.from({ length: state.n - 1 }, (_, index) => (
         `<div class="legend-item"><span class="swatch" style="--swatch: ${edgeColors[index]}"></span><span>${simpleText(index + 1)} edges</span></div>`
       )).join("");
+      renderInversionPanel();
     }
 
     function renderComplexUi() {
@@ -1405,6 +1429,7 @@
       els.s4.classList.toggle("active", state.n === 4);
       els.modeWeak.classList.remove("active");
       els.modeComplex.classList.toggle("active", state.mode === "coxeterComplex");
+      els.modeSimplex.classList.toggle("active", state.mode === "simplex");
       els.modeBraid.classList.toggle("active", state.mode === "braidArrangement");
       els.embeddingCard.classList.add("hidden");
       els.cayleyCard.classList.remove("hidden");
@@ -1414,11 +1439,17 @@
       els.showCayley.checked = state.showCayley;
       els.title.textContent = state.mode === "braidArrangement"
         ? `Braid arrangement for ${groupText(state.n)}`
-        : `Coxeter complex for ${groupText(state.n)}`;
+        : state.mode === "simplex"
+          ? `Simplex model for ${groupText(state.n)}`
+          : `Coxeter complex for ${groupText(state.n)}`;
       els.hint.textContent = state.mode === "braidArrangement"
         ? state.n === 4
           ? "Drag to rotate. Scroll or pinch to zoom. Select a label or disk."
           : "Drag to pan. Scroll or pinch to zoom. Select a label or strip."
+        : state.mode === "simplex"
+          ? state.n === 4
+            ? "Drag to rotate. Scroll or pinch to zoom. Select a chamber."
+            : "Drag to pan. Scroll or pinch to zoom. Select a chamber."
         : state.n === 4
         ? "Drag to rotate. Scroll or pinch to zoom. Select a chamber."
         : "Drag to pan. Scroll or pinch to zoom. Select a chamber.";
@@ -1435,7 +1466,7 @@
         els.factLength.textContent = "--";
         els.factDescents.innerHTML = "--";
         els.factInversions.textContent = "--";
-        els.coverList.innerHTML = `<div class="cover-row"><b>--</b><span>Selected transpositions are not an inversion set.</span></div>`;
+        els.coverList.innerHTML = `<div class="cover-row"><b>--</b><span>Selected inversions are not an inversion set.</span></div>`;
       } else if (selected) {
         els.factPermutation.textContent = selected.key;
         els.factLength.textContent = String(selected.rank);
@@ -1454,10 +1485,7 @@
       els.coverCardTitle.textContent = "Adjacent chambers";
       els.coverCardNote.textContent = "Right multiplication across a chamber wall.";
       els.legendTitle.textContent = state.mode === "braidArrangement" ? "Disk colors" : "Edge colors";
-      const rootButtons = allRootKeys(state.n).map((rootKey) => (
-        `<button class="transposition-bubble ${state.selectedRootKeys.includes(rootKey) ? "active" : ""}" type="button" data-root="${rootKey}" style="--root-color: ${inversionCircleColors[rootKey] || edgeColors[0]}">${transpositionText(rootKey)}</button>`
-      )).join("");
-      els.transpositionPanel.innerHTML = `<span class="transposition-title">Transpositions</span>${rootButtons}`;
+      renderInversionPanel();
       els.legend.innerHTML = state.mode === "braidArrangement"
         ? allRootKeys(state.n).map((rootKey) => (
           `<div class="legend-item"><span class="swatch" style="--swatch: ${inversionCircleColors[rootKey] || edgeColors[0]}"></span><span>${transpositionText(rootKey)} disk</span></div>`
@@ -1468,12 +1496,33 @@
         `;
     }
 
+    function renderInversionPanel() {
+      const rootButtons = allRootKeys(state.n).map((rootKey) => (
+        `<button class="transposition-bubble ${state.selectedRootKeys.includes(rootKey) ? "active" : ""}" type="button" data-root="${rootKey}" style="--root-color: ${inversionCircleColors[rootKey] || edgeColors[0]}">${transpositionText(rootKey)}</button>`
+      )).join("");
+      els.transpositionPanel.innerHTML = `<span class="transposition-title">Inversions</span>${rootButtons}`;
+    }
+
     function refreshLabels() {
       drawScene();
     }
 
+    function startGeometryTransition(fromMode, toMode) {
+      if (!["coxeterComplex", "simplex"].includes(fromMode) || !["coxeterComplex", "simplex"].includes(toMode)) {
+        state.geometryTransition = null;
+        return;
+      }
+      state.geometryTransition = {
+        from: fromMode,
+        to: toMode,
+        start: performance.now(),
+        duration: 520,
+      };
+    }
+
     function setGroup(n) {
       if (state.n === n) return;
+      state.geometryTransition = null;
       state.n = n;
       state.selectedKey = permKey(identity(n));
       state.selectedRootKeys = [];
@@ -1691,23 +1740,395 @@
       return { normal, u, v };
     }
 
-    function drawComplexScene() {
-      if (!state.complex) return;
-      resizeCanvas();
-      const rect = els.canvas.getBoundingClientRect();
-      ctx.clearRect(0, 0, rect.width, rect.height);
-      const complex = state.complex;
-      const projectedVertices = new Map(complex.vertices.map((vertex) => [vertex.key, {
-        vertex,
-        ...projectPoint(vertex.position, rect, state.n === 3 ? 5.0 : 6.8),
-      }]));
-      const projectedChambers = complex.chambers.map((chamber) => ({
-        chamber,
-        surfaceCenter: normalizePoint(chamber.center, complex.radius),
-        center: projectPoint(chamber.center, rect, state.n === 3 ? 5.0 : 6.8),
-        labelPoint: projectPoint(normalizePoint(chamber.center, complex.radius * 1.035), rect, state.n === 3 ? 5.0 : 6.8),
-        vertices: chamber.vertices.map((vertex) => projectedVertices.get(vertex.key)),
+    function addPoint(a, b) {
+      return { x: a.x + b.x, y: a.y + b.y, z: a.z + b.z };
+    }
+
+    function scalePoint(point, scale) {
+      return { x: point.x * scale, y: point.y * scale, z: point.z * scale };
+    }
+
+    function lerpPoint(a, b, t) {
+      return {
+        x: a.x + (b.x - a.x) * t,
+        y: a.y + (b.y - a.y) * t,
+        z: a.z + (b.z - a.z) * t,
+      };
+    }
+
+    function easeInOut(t) {
+      return t < 0.5 ? 2 * t * t : 1 - ((-2 * t + 2) ** 2) / 2;
+    }
+
+    function averagePoints(points) {
+      if (!points.length) return { x: 0, y: 0, z: 0 };
+      return scalePoint(points.reduce(addPoint, { x: 0, y: 0, z: 0 }), 1 / points.length);
+    }
+
+    function closestPointOnSegment3d(point, first, second) {
+      const dx = second.x - first.x;
+      const dy = second.y - first.y;
+      const dz = second.z - first.z;
+      const length2 = dx * dx + dy * dy + dz * dz || 1;
+      const t = Math.max(0, Math.min(1, (
+        (point.x - first.x) * dx +
+        (point.y - first.y) * dy +
+        (point.z - first.z) * dz
+      ) / length2));
+      return {
+        x: first.x + dx * t,
+        y: first.y + dy * t,
+        z: first.z + dz * t,
+      };
+    }
+
+    function simplexCorner(value, n, radius) {
+      const subset = new Set([value]);
+      const point = normalizePoint(subsetProjection(subset, n), radius);
+      const singletonPoint = n === 3 ? s3ComplexPoint(point) : point;
+      return scalePoint(singletonPoint, -1);
+    }
+
+    function simplexSubsetPosition(values, n, radius) {
+      const selected = new Set(values);
+      const simplexValues = Array.from({ length: n }, (_, index) => index + 1)
+        .filter((value) => !selected.has(value));
+      return averagePoints(simplexValues.map((value) => simplexCorner(value, n, radius)));
+    }
+
+    function simplexChamberCenter(chamber, complex) {
+      return averagePoints(chamber.vertices.map((vertex) =>
+        simplexSubsetPosition(vertex.values, complex.n, complex.radius)
+      ));
+    }
+
+    function simplexFaceNormal(values, complex) {
+      return normalizePoint(averagePoints(values.map((value) =>
+        simplexCorner(value, complex.n, complex.radius)
+      )), 1);
+    }
+
+    function simplexChamberNormal(chamber, complex) {
+      if (complex.n === 4) {
+        const firstValue = chamber.perm[0];
+        const faceValues = Array.from({ length: complex.n }, (_, index) => index + 1)
+          .filter((value) => value !== firstValue);
+        return simplexFaceNormal(faceValues, complex);
+      }
+      const first = chamber.vertices[0].position;
+      const second = chamber.vertices[1].position;
+      const center = simplexChamberCenter(chamber, complex);
+      const edge = { x: second.x - first.x, y: second.y - first.y, z: 0 };
+      const outward = normalizePoint({ x: edge.y, y: -edge.x, z: 0 }, 1);
+      return dotPoint(outward, center) >= 0 ? outward : scalePoint(outward, -1);
+    }
+
+    function buildSimplexProjection(complex, rect) {
+      const projectedVertices = new Map(complex.vertices.map((vertex) => {
+        const position = simplexSubsetPosition(vertex.values, complex.n, complex.radius);
+        return [vertex.key, {
+          vertex,
+          position,
+          ...projectPoint(position, rect, complex.n === 3 ? 5.0 : 6.8),
+        }];
       }));
+      const projectedChambers = complex.chambers.map((chamber) => {
+        const surfaceCenter = simplexChamberCenter(chamber, complex);
+        const normal = simplexChamberNormal(chamber, complex);
+        const labelWorld = addPoint(surfaceCenter, scalePoint(normal, complex.n === 4 ? 0.13 : 0.1));
+        const rotatedNormal = applyMatrix(state.rotation, normal);
+        const center = projectPoint(surfaceCenter, rect, complex.n === 3 ? 5.0 : 6.8);
+        return {
+          chamber,
+          surfaceCenter,
+          simplexNormal: normal,
+          simplexFacing: rotatedNormal.z,
+          visibleLabel: complex.n === 3 || rotatedNormal.z > -0.08,
+          center,
+          labelPoint: projectPoint(labelWorld, rect, complex.n === 3 ? 5.0 : 6.8),
+          vertices: chamber.vertices.map((vertex) => projectedVertices.get(vertex.key)),
+        };
+      });
+      const depths = projectedChambers.map((item) => item.center.z);
+      const minDepth = Math.min(...depths);
+      const maxDepth = Math.max(...depths);
+      const depthSpan = Math.max(maxDepth - minDepth, 0.001);
+      projectedChambers.forEach((item) => {
+        item.depth = (item.center.z - minDepth) / depthSpan;
+      });
+      return { projectedVertices, projectedChambers };
+    }
+
+    function simplexS4Faces(complex) {
+      return [1, 2, 3, 4].map((missing) => {
+        const values = [1, 2, 3, 4].filter((value) => value !== missing);
+        const points = values.map((value) => simplexCorner(value, 4, complex.radius));
+        const normal = simplexFaceNormal(values, complex);
+        return { values, points, normal, center: averagePoints(points) };
+      });
+    }
+
+    function drawProjectedPolyline(points, rect, divisor, close = false) {
+      const projected = points.map((point) => projectPoint(point, rect, divisor));
+      if (!projected.length) return;
+      ctx.beginPath();
+      ctx.moveTo(projected[0].x, projected[0].y);
+      projected.slice(1).forEach((point) => ctx.lineTo(point.x, point.y));
+      if (close) ctx.closePath();
+      ctx.stroke();
+    }
+
+    function drawSimplexScene(complex, projectedVertices, projectedChambers) {
+      const rect = els.canvas.getBoundingClientRect();
+      if (complex.n === 4) drawS4SimplexScene(complex, projectedVertices, projectedChambers, rect);
+      else drawS3SimplexScene(complex, projectedVertices, projectedChambers, rect);
+    }
+
+    function drawS4SimplexScene(complex, projectedVertices, projectedChambers, rect) {
+      const faces = simplexS4Faces(complex).map((face) => ({
+        ...face,
+        rotatedNormal: applyMatrix(state.rotation, face.normal),
+        depth: projectPoint(face.center, rect, 6.8).z,
+        projected: face.points.map((point) => projectPoint(point, rect, 6.8)),
+      }));
+      const visibleFaces = faces.filter((face) => face.rotatedNormal.z > 0.015);
+      visibleFaces
+        .slice()
+        .sort((a, b) => a.depth - b.depth)
+        .forEach((face) => {
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = "rgba(238, 244, 255, 0.94)";
+          ctx.strokeStyle = "rgba(22, 32, 51, 0.36)";
+          ctx.lineWidth = 1.4;
+          ctx.beginPath();
+          ctx.moveTo(face.projected[0].x, face.projected[0].y);
+          ctx.lineTo(face.projected[1].x, face.projected[1].y);
+          ctx.lineTo(face.projected[2].x, face.projected[2].y);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+        });
+
+      const visibleFaceKeys = new Set(visibleFaces.map((face) => face.values.join("")));
+      const seen = new Set();
+      projectedChambers.forEach((item) => {
+        const faceKey = [1, 2, 3, 4].filter((value) => value !== item.chamber.perm[0]).join("");
+        if (!visibleFaceKeys.has(faceKey)) return;
+        [[0, 1], [1, 2], [2, 0]].forEach(([i, j]) => {
+          const first = item.vertices[i];
+          const second = item.vertices[j];
+          const key = [first.vertex.key, second.vertex.key].sort().join("|");
+          if (seen.has(key)) return;
+          seen.add(key);
+          ctx.globalAlpha = 0.78;
+          ctx.strokeStyle = chamberStroke;
+          ctx.lineWidth = 1.45;
+          ctx.beginPath();
+          ctx.moveTo(first.x, first.y);
+          ctx.lineTo(second.x, second.y);
+          ctx.stroke();
+        });
+      });
+      drawSimplexReflectionCurves(complex, visibleFaces, rect);
+    }
+
+    function drawS3SimplexScene(complex, projectedVertices, projectedChambers, rect) {
+      const corners = [1, 2, 3].map((value) => simplexCorner(value, 3, complex.radius));
+      const projected = corners.map((point) => projectPoint(point, rect, 5.0));
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = "rgba(238, 244, 255, 0.9)";
+      ctx.strokeStyle = "rgba(22, 32, 51, 0.48)";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(projected[0].x, projected[0].y);
+      ctx.lineTo(projected[1].x, projected[1].y);
+      ctx.lineTo(projected[2].x, projected[2].y);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      projectedChambers.forEach((item) => {
+        ctx.globalAlpha = 0.86;
+        ctx.strokeStyle = chamberStroke;
+        ctx.lineWidth = 2.3;
+        ctx.beginPath();
+        ctx.moveTo(item.vertices[0].x, item.vertices[0].y);
+        ctx.lineTo(item.vertices[1].x, item.vertices[1].y);
+        ctx.stroke();
+      });
+      drawS3SimplexReflectionSegments(complex, rect);
+      drawS3ComplexVertices(projectedVertices);
+    }
+
+    function planeFaceIntersections(face, normal) {
+      const points = [];
+      for (let index = 0; index < face.points.length; index += 1) {
+        const first = face.points[index];
+        const second = face.points[(index + 1) % face.points.length];
+        const firstValue = dotPoint(first, normal);
+        const secondValue = dotPoint(second, normal);
+        if (Math.abs(firstValue) < 1e-7) points.push(first);
+        if (firstValue * secondValue < -1e-7) {
+          const t = firstValue / (firstValue - secondValue);
+          points.push({
+            x: first.x + (second.x - first.x) * t,
+            y: first.y + (second.y - first.y) * t,
+            z: first.z + (second.z - first.z) * t,
+          });
+        }
+      }
+      const unique = [];
+      points.forEach((point) => {
+        const exists = unique.some((other) =>
+          Math.hypot(point.x - other.x, point.y - other.y, point.z - other.z) < 1e-5
+        );
+        if (!exists) unique.push(point);
+      });
+      return unique;
+    }
+
+    function drawSimplexReflectionCurves(complex, faces, rect) {
+      if (!state.selectedRootKeys.length) return;
+      state.selectedRootKeys.forEach((rootKey) => {
+        const [a, b] = rootKey.split("-").map(Number);
+        const normal = normalizePoint(rootProjection(a, b, complex.n), 1);
+        ctx.globalAlpha = 0.96;
+        ctx.strokeStyle = inversionCircleColors[rootKey] || "#246bfe";
+        ctx.lineWidth = 3.2;
+        faces.forEach((face) => {
+          const points = planeFaceIntersections(face, normal);
+          if (points.length < 2) return;
+          drawProjectedPolyline(points.slice(0, 2), rect, 6.8);
+        });
+      });
+    }
+
+    function drawS3SimplexReflectionSegments(complex, rect) {
+      if (!state.selectedRootKeys.length) return;
+      const corners = [1, 2, 3].map((value) => simplexCorner(value, 3, complex.radius));
+      const face = { points: corners };
+      state.selectedRootKeys.forEach((rootKey) => {
+        const [a, b] = rootKey.split("-").map(Number);
+        const normal = s3ComplexPoint(rootProjection(a, b, 3));
+        const points = planeFaceIntersections(face, normalizePoint(normal, 1));
+        if (points.length < 2) return;
+        ctx.globalAlpha = 0.92;
+        ctx.strokeStyle = inversionCircleColors[rootKey] || "#246bfe";
+        ctx.lineWidth = 3;
+        drawProjectedPolyline(points.slice(0, 2), rect, 5.0);
+      });
+    }
+
+    function geometryTransitionProgress() {
+      const transition = state.geometryTransition;
+      if (!transition) return null;
+      const raw = Math.min(1, (performance.now() - transition.start) / transition.duration);
+      const t = easeInOut(raw);
+      return {
+        done: raw >= 1,
+        t: transition.to === "coxeterComplex" ? t : 1 - t,
+      };
+    }
+
+    function transitionPointFromSimplex(point, complex, sphereAmount, radiusScale = 1) {
+      return lerpPoint(point, normalizePoint(point, complex.radius * radiusScale), sphereAmount);
+    }
+
+    function barycentricPoint(a, b, c, u, v) {
+      return {
+        x: a.x * (1 - u - v) + b.x * u + c.x * v,
+        y: a.y * (1 - u - v) + b.y * u + c.y * v,
+        z: a.z * (1 - u - v) + b.z * u + c.z * v,
+      };
+    }
+
+    function drawTransitionCurve(points, rect, divisor, sphereAmount, complex) {
+      const projected = points.map((point) =>
+        projectPoint(transitionPointFromSimplex(point, complex, sphereAmount), rect, divisor)
+      );
+      if (!projected.length) return;
+      ctx.beginPath();
+      ctx.moveTo(projected[0].x, projected[0].y);
+      projected.slice(1).forEach((point) => ctx.lineTo(point.x, point.y));
+      ctx.stroke();
+    }
+
+    function collectTransitionChamberSurface(simplexPoints, rect, divisor, sphereAmount, complex, depth, triangles) {
+      const steps = 5;
+      for (let i = 0; i < steps; i += 1) {
+        for (let j = 0; j < steps - i; j += 1) {
+          const u0 = i / steps;
+          const v0 = j / steps;
+          const u1 = (i + 1) / steps;
+          const v1 = j / steps;
+          const u2 = i / steps;
+          const v2 = (j + 1) / steps;
+          const firstTri = [u0, v0, u1, v1, u2, v2];
+          triangles.push(transitionMicroTriangle(simplexPoints, firstTri, rect, divisor, sphereAmount, complex, depth));
+          if (j < steps - i - 1) {
+            const secondTri = [u1, v1, (i + 1) / steps, (j + 1) / steps, u2, v2];
+            triangles.push(transitionMicroTriangle(simplexPoints, secondTri, rect, divisor, sphereAmount, complex, depth));
+          }
+        }
+      }
+    }
+
+    function transitionMicroTriangle(simplexPoints, coords, rect, divisor, sphereAmount, complex, chamberDepth) {
+      const points = [
+        barycentricPoint(simplexPoints[0], simplexPoints[1], simplexPoints[2], coords[0], coords[1]),
+        barycentricPoint(simplexPoints[0], simplexPoints[1], simplexPoints[2], coords[2], coords[3]),
+        barycentricPoint(simplexPoints[0], simplexPoints[1], simplexPoints[2], coords[4], coords[5]),
+      ].map((point) => projectPoint(transitionPointFromSimplex(point, complex, sphereAmount), rect, divisor));
+      return {
+        points,
+        depth: points.reduce((total, point) => total + point.z, 0) / points.length,
+        chamberDepth,
+      };
+    }
+
+    function drawTransitionMicroTriangle(triangle) {
+      const points = triangle.points;
+      ctx.beginPath();
+      ctx.moveTo(points[0].x, points[0].y);
+      ctx.lineTo(points[1].x, points[1].y);
+      ctx.lineTo(points[2].x, points[2].y);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    function drawGeometryTransitionScene(complex, rect, progress) {
+      const sphereAmount = progress.t;
+      const divisor = complex.n === 3 ? 5.0 : 6.8;
+      const projectedVertices = new Map(complex.vertices.map((vertex) => {
+        const simplexPosition = simplexSubsetPosition(vertex.values, complex.n, complex.radius);
+        const position = transitionPointFromSimplex(simplexPosition, complex, sphereAmount);
+        return [vertex.key, {
+          vertex,
+          position,
+          ...projectPoint(position, rect, divisor),
+        }];
+      }));
+      const projectedChambers = complex.chambers.map((chamber) => {
+        const positions = chamber.vertices.map((vertex) => projectedVertices.get(vertex.key).position);
+        const simplexPositions = chamber.vertices.map((vertex) =>
+          simplexSubsetPosition(vertex.values, complex.n, complex.radius)
+        );
+        const simplexCenter = averagePoints(simplexPositions);
+        const surfaceCenter = averagePoints(positions);
+        const labelWorld = lerpPoint(
+          addPoint(simplexCenter, scalePoint(simplexChamberNormal(chamber, complex), complex.n === 4 ? 0.13 : 0.1)),
+          normalizePoint(simplexCenter, complex.radius * 1.035),
+          sphereAmount
+        );
+        return {
+          chamber,
+          simplexPositions,
+          surfaceCenter,
+          center: projectPoint(surfaceCenter, rect, divisor),
+          labelPoint: projectPoint(labelWorld, rect, divisor),
+          visibleLabel: true,
+          vertices: chamber.vertices.map((vertex) => projectedVertices.get(vertex.key)),
+        };
+      });
       const depths = projectedChambers.map((item) => item.center.z);
       const minDepth = Math.min(...depths);
       const maxDepth = Math.max(...depths);
@@ -1717,6 +2138,109 @@
       });
       state.projected = projectedChambers;
       state.braidHitRegions = [];
+      els.canvas3d.classList.add("hidden");
+      clearWebglCanvas();
+
+      if (complex.n === 4 && sphereAmount > 0.18) {
+        const sphere = projectPoint({ x: 0, y: 0, z: 0 }, rect, 6.8);
+        const radius = Math.min(rect.width, rect.height) * state.zoom * complex.radius / 6.8;
+        ctx.globalAlpha = 0.18 + 0.58 * sphereAmount;
+        ctx.fillStyle = "#eef4ff";
+        ctx.beginPath();
+        ctx.arc(sphere.x, sphere.y, radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      const transitionTriangles = [];
+      if (complex.n === 4) {
+        projectedChambers.forEach((item) => {
+          collectTransitionChamberSurface(item.simplexPositions, rect, divisor, sphereAmount, complex, item.depth, transitionTriangles);
+        });
+        ctx.globalAlpha = 0.94;
+        ctx.fillStyle = "#eef4ff";
+        transitionTriangles
+          .sort((a, b) => a.depth - b.depth)
+          .forEach(drawTransitionMicroTriangle);
+      }
+
+      const seen = new Set();
+      projectedChambers
+        .slice()
+        .sort((a, b) => a.depth - b.depth)
+        .forEach((item) => {
+          if (complex.n === 4 && item.center.z < -0.02) return;
+          const edgePairs = complex.n === 4 ? [[0, 1], [1, 2], [2, 0]] : [[0, 1]];
+          edgePairs.forEach(([i, j]) => {
+            const first = item.vertices[i];
+            const second = item.vertices[j];
+            const key = [first.vertex.key, second.vertex.key].sort().join("|");
+            if (seen.has(key)) return;
+            seen.add(key);
+            const simplexFirst = simplexSubsetPosition(first.vertex.values, complex.n, complex.radius);
+            const simplexSecond = simplexSubsetPosition(second.vertex.values, complex.n, complex.radius);
+            const samples = [];
+            const steps = complex.n === 4 ? 14 : 18;
+            for (let step = 0; step <= steps; step += 1) {
+              samples.push(lerpPoint(simplexFirst, simplexSecond, step / steps));
+            }
+            ctx.globalAlpha = 0.45 + 0.35 * item.depth;
+            ctx.strokeStyle = chamberStroke;
+            ctx.lineWidth = complex.n === 4 ? 1.45 : 2.4;
+            drawTransitionCurve(samples, rect, divisor, sphereAmount, complex);
+          });
+        });
+
+      projectedChambers
+        .slice()
+        .sort((a, b) => a.depth - b.depth)
+        .forEach((item) => {
+          if (complex.n === 4 && item.depth < 0.22) return;
+          drawChamberLabel(item);
+        });
+      ctx.globalAlpha = 1;
+    }
+
+    function drawComplexScene() {
+      if (!state.complex) return;
+      resizeCanvas();
+      const rect = els.canvas.getBoundingClientRect();
+      ctx.clearRect(0, 0, rect.width, rect.height);
+      const complex = state.complex;
+      const transitionProgress = geometryTransitionProgress();
+      if (transitionProgress) {
+        drawGeometryTransitionScene(complex, rect, transitionProgress);
+        if (transitionProgress.done) state.geometryTransition = null;
+        else requestAnimationFrame(drawScene);
+        return;
+      }
+      let projectedVertices;
+      let projectedChambers;
+      if (state.mode === "simplex") {
+        const simplexProjection = buildSimplexProjection(complex, rect);
+        projectedVertices = simplexProjection.projectedVertices;
+        projectedChambers = simplexProjection.projectedChambers;
+      } else {
+        projectedVertices = new Map(complex.vertices.map((vertex) => [vertex.key, {
+          vertex,
+          ...projectPoint(vertex.position, rect, state.n === 3 ? 5.0 : 6.8),
+        }]));
+        projectedChambers = complex.chambers.map((chamber) => ({
+          chamber,
+          surfaceCenter: normalizePoint(chamber.center, complex.radius),
+          center: projectPoint(chamber.center, rect, state.n === 3 ? 5.0 : 6.8),
+          labelPoint: projectPoint(normalizePoint(chamber.center, complex.radius * 1.035), rect, state.n === 3 ? 5.0 : 6.8),
+          vertices: chamber.vertices.map((vertex) => projectedVertices.get(vertex.key)),
+        }));
+        const depths = projectedChambers.map((item) => item.center.z);
+        const minDepth = Math.min(...depths);
+        const maxDepth = Math.max(...depths);
+        const depthSpan = Math.max(maxDepth - minDepth, 0.001);
+        projectedChambers.forEach((item) => {
+          item.depth = (item.center.z - minDepth) / depthSpan;
+        });
+      }
+      state.projected = projectedChambers;
+      state.braidHitRegions = [];
       if (!(state.mode === "braidArrangement" && state.n === 4)) {
         els.canvas3d.classList.add("hidden");
         clearWebglCanvas();
@@ -1724,6 +2248,8 @@
 
       if (state.mode === "braidArrangement") {
         drawBraidArrangement(complex, projectedVertices);
+      } else if (state.mode === "simplex") {
+        drawSimplexScene(complex, projectedVertices, projectedChambers);
       } else if (state.n === 4) {
         const sphere = projectPoint({ x: 0, y: 0, z: 0 }, rect, 6.8);
         const radius = Math.min(rect.width, rect.height) * state.zoom * complex.radius / 6.8;
@@ -1738,8 +2264,8 @@
         ctx.stroke();
       }
 
-      if (state.mode === "braidArrangement") {
-        // The braid arrangement supplies the geometric layer in this mode.
+      if (state.mode === "braidArrangement" || state.mode === "simplex") {
+        // These modes draw their geometric layer above.
       } else if (state.n === 4) {
         ctx.globalAlpha = 0.88;
         ctx.strokeStyle = chamberStroke;
@@ -1768,7 +2294,8 @@
         .slice()
         .sort((a, b) => a.depth - b.depth)
         .forEach((item) => {
-          if (state.n === 4 && item.depth < 0.5) return;
+          if (state.mode === "simplex" && item.visibleLabel === false) return;
+          if (state.mode !== "simplex" && state.n === 4 && item.depth < 0.5) return;
           drawChamberLabel(item);
         });
 
@@ -2125,7 +2652,45 @@
       state.complex.cayleyEdges.forEach((edge) => {
         const from = byKey.get(edge.from.key);
         const to = byKey.get(edge.to.key);
+        if (!from || !to) return;
         const highlighted = edgeTopBelowSelected(edge);
+        if (state.mode === "simplex") {
+          const common = from.chamber.vertices
+            .map((vertex) => vertex.key)
+            .filter((key) => to.chamber.vertices.some((vertex) => vertex.key === key));
+          const wallPoints = common
+            .map((key) => {
+              const vertex = state.complex.vertices.find((item) => item.key === key);
+              return vertex ? simplexSubsetPosition(vertex.values, state.complex.n, state.complex.radius) : null;
+            })
+            .filter(Boolean);
+          const wallPoint = wallPoints.length >= 2
+            ? closestPointOnSegment3d(from.surfaceCenter, wallPoints[0], wallPoints[1])
+            : wallPoints.length === 1
+              ? wallPoints[0]
+              : averagePoints([from.surfaceCenter, to.surfaceCenter]);
+          const first = projectPoint(from.surfaceCenter, els.canvas.getBoundingClientRect(), state.n === 3 ? 5.0 : 6.8);
+          const middle = projectPoint(wallPoint, els.canvas.getBoundingClientRect(), state.n === 3 ? 5.0 : 6.8);
+          const second = projectPoint(to.surfaceCenter, els.canvas.getBoundingClientRect(), state.n === 3 ? 5.0 : 6.8);
+          const fromVisible = state.n === 3 || from.simplexFacing > 0.015;
+          const toVisible = state.n === 3 || to.simplexFacing > 0.015;
+          if (!fromVisible && !toVisible) return;
+          const depth = Math.min(first.z, middle.z, second.z);
+          ctx.globalAlpha = highlighted ? 1 : state.n === 4 ? 0.5 + Math.max(depth, 0) / state.complex.radius * 0.28 : 0.86;
+          ctx.strokeStyle = highlighted ? "#05070a" : coverRelationColor;
+          ctx.lineWidth = highlighted ? 3.1 : 2;
+          ctx.beginPath();
+          if (fromVisible) {
+            ctx.moveTo(first.x, first.y);
+            ctx.lineTo(middle.x, middle.y);
+          }
+          if (toVisible) {
+            ctx.moveTo(second.x, second.y);
+            ctx.lineTo(middle.x, middle.y);
+          }
+          ctx.stroke();
+          return;
+        }
         if (state.n === 4) {
           const depth = Math.min(from.labelPoint.z, to.labelPoint.z);
           ctx.globalAlpha = highlighted ? 0.98 : 0.42 + Math.max(depth, 0) / state.complex.radius * 0.32;
@@ -2145,7 +2710,8 @@
       });
       projectedChambers.forEach((item) => {
         const anchor = state.n === 4 ? item.labelPoint : item.center;
-        if (state.n === 4 && anchor.z < 0) return;
+        if (state.mode === "simplex" && item.visibleLabel === false) return;
+        if (state.mode !== "simplex" && state.n === 4 && anchor.z < 0) return;
         const visiblySelected = item.chamber.key === state.selectedKey;
         ctx.globalAlpha = state.n === 4 ? 0.78 : 1;
         ctx.fillStyle = visiblySelected ? "#246bfe" : "#ffffff";
@@ -2322,6 +2888,7 @@
     els.s4.addEventListener("click", () => setGroup(4));
     els.modeWeak.addEventListener("click", () => {
       if (state.mode === "weakOrder") return;
+      state.geometryTransition = null;
       state.mode = "weakOrder";
       rebuildScene();
     });
@@ -2329,10 +2896,19 @@
       if (state.mode === "coxeterComplex") return;
       const wasGeometry = isGeometryMode();
       state.mode = "coxeterComplex";
+      state.geometryTransition = null;
+      rebuildScene(!wasGeometry);
+    });
+    els.modeSimplex.addEventListener("click", () => {
+      if (state.mode === "simplex") return;
+      const wasGeometry = isGeometryMode();
+      state.mode = "simplex";
+      state.geometryTransition = null;
       rebuildScene(!wasGeometry);
     });
     els.modeBraid.addEventListener("click", () => {
       if (state.mode === "braidArrangement") return;
+      state.geometryTransition = null;
       const wasGeometry = isGeometryMode();
       state.mode = "braidArrangement";
       rebuildScene(!wasGeometry);
@@ -2343,7 +2919,7 @@
     });
     els.transpositionPanel.addEventListener("click", (event) => {
       const button = event.target.closest("[data-root]");
-      if (!button || !isGeometryMode()) return;
+      if (!button) return;
       toggleSelectedRoot(button.dataset.root);
     });
     els.coverList.addEventListener("click", (event) => {
