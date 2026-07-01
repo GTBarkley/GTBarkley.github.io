@@ -1,0 +1,2470 @@
+<!doctype html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lecture 2: Weak Order</title>
+  <style>
+    :root {
+      --ink: #162033;
+      --muted: #667085;
+      --line: #d8dee8;
+      --soft-line: #edf0f5;
+      --panel: #ffffff;
+      --panel-soft: #f7f9fc;
+      --accent: #246bfe;
+      --accent-soft: #e8f0ff;
+      --accent-strong: #174fd0;
+      --green: #15803d;
+      --amber: #a16207;
+      --red: #b42318;
+      --shadow: 0 18px 45px rgba(25, 38, 70, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      background: #fff;
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
+
+    button {
+      font: inherit;
+      cursor: pointer;
+    }
+
+    .app-shell {
+      width: min(1220px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 28px 0 40px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 0 2px 20px;
+    }
+
+    .eyebrow {
+      margin: 0 0 6px;
+      color: var(--accent);
+      font-size: 0.79rem;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+    }
+
+    h1 {
+      margin-bottom: 0;
+      font-size: clamp(2rem, 5vw, 3.35rem);
+      line-height: 1;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      margin-bottom: 5px;
+      font-size: 1.05rem;
+    }
+
+    h3 {
+      margin-bottom: 0;
+      font-size: 0.94rem;
+    }
+
+    .top-controls,
+    .mode-tabs,
+    .embedding-controls,
+    .view-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .segmented {
+      display: inline-flex;
+      padding: 3px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .segmented button,
+    .mode-tabs button,
+    .embedding-controls button,
+    .view-actions button {
+      min-height: 38px;
+      border: 0;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--ink);
+      padding: 0 12px;
+      font-weight: 800;
+    }
+
+    .segmented button.active,
+    .mode-tabs button.active,
+    .embedding-controls button.active {
+      background: var(--ink);
+      color: #fff;
+    }
+
+    .mode-tabs button {
+      border: 1px solid var(--line);
+      background: #fff;
+    }
+
+    .mode-tabs button:disabled {
+      cursor: not-allowed;
+      opacity: 0.46;
+    }
+
+    .embedding-card.hidden {
+      display: none;
+    }
+
+    .cayley-card.hidden {
+      display: none;
+    }
+
+    .embedding-controls {
+      display: inline-flex;
+      gap: 8px;
+      flex-wrap: nowrap;
+    }
+
+    .embedding-controls button {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+    }
+
+    .cayley-toggle {
+      min-height: 38px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--ink);
+      padding: 0 11px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .cayley-toggle input {
+      width: 16px;
+      min-height: 16px;
+      padding: 0;
+      accent-color: var(--accent);
+    }
+
+    .view-actions {
+      flex-wrap: nowrap;
+      justify-content: flex-end;
+      min-width: max-content;
+    }
+
+    .view-actions #reset-view {
+      border: 1px solid var(--accent);
+      background: var(--accent);
+      color: #fff;
+      white-space: nowrap;
+    }
+
+    .view-actions #reset-view:hover {
+      border-color: var(--accent-strong);
+      background: var(--accent-strong);
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1.65fr) minmax(300px, 0.85fr);
+      gap: 22px;
+      align-items: start;
+    }
+
+    .main-panel,
+    .fact-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+
+    .main-panel {
+      min-height: 690px;
+      overflow: hidden;
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 20px 20px 14px;
+      border-bottom: 1px solid var(--soft-line);
+    }
+
+    .panel-head > div:first-child {
+      min-width: 0;
+    }
+
+    .panel-head p,
+    .fact-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    #view-subtitle {
+      display: none;
+    }
+
+    .scene-wrap {
+      position: relative;
+      height: 600px;
+      background:
+        linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    }
+
+    #scene,
+    #scene-3d {
+      position: absolute;
+      inset: 0;
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    #scene {
+      outline: none;
+      touch-action: none;
+      z-index: 2;
+    }
+
+    #scene-3d {
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    #scene-3d.hidden {
+      display: none;
+    }
+
+    .scene-hint {
+      position: absolute;
+      left: 14px;
+      bottom: 14px;
+      max-width: min(430px, calc(100% - 28px));
+      border: 1px solid rgba(216, 222, 232, 0.86);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.88);
+      color: var(--muted);
+      padding: 9px 11px;
+      font-size: 0.84rem;
+      font-weight: 700;
+      backdrop-filter: blur(6px);
+    }
+
+    .transposition-panel {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0;
+      border-top: 1px solid var(--soft-line);
+      background: #fff;
+      padding: 11px 14px;
+      overflow-x: auto;
+    }
+
+    .transposition-panel.hidden {
+      display: none;
+    }
+
+    .transposition-title {
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 850;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .transposition-bubble {
+      min-height: 30px;
+      border: 1px solid color-mix(in srgb, var(--root-color), #ffffff 42%);
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--root-color), #ffffff 86%);
+      color: var(--ink);
+      padding: 0 11px;
+      font-size: 0.88rem;
+      font-weight: 750;
+      white-space: nowrap;
+    }
+
+    .transposition-bubble.active {
+      border: 2px solid var(--root-color);
+      background: var(--root-color);
+      color: #fff;
+      font-weight: 950;
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--root-color), transparent 78%);
+    }
+
+    .side-panel {
+      display: grid;
+      gap: 18px;
+    }
+
+    .fact-card {
+      padding: 18px;
+    }
+
+    #legend-card.hidden {
+      display: none;
+    }
+
+    .facts {
+      display: grid;
+      gap: 12px;
+      margin: 15px 0 0;
+    }
+
+    .facts div {
+      display: grid;
+      gap: 3px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--soft-line);
+    }
+
+    .facts div:last-child {
+      border-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    dt {
+      color: var(--muted);
+      font-size: 0.76rem;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    dd {
+      margin: 0;
+      overflow-wrap: anywhere;
+      font-size: 0.98rem;
+    }
+
+    .legend {
+      display: grid;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      color: var(--muted);
+      font-size: 0.9rem;
+      font-weight: 750;
+    }
+
+    .legend-button {
+      width: 100%;
+      border: 1px solid var(--soft-line);
+      border-radius: 8px;
+      background: var(--panel-soft);
+      padding: 8px 9px;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .legend-button.active {
+      border-color: var(--accent);
+      background: #edf4ff;
+      color: var(--ink);
+    }
+
+    .swatch {
+      width: 30px;
+      height: 4px;
+      border-radius: 999px;
+      background: var(--swatch);
+    }
+
+    .cover-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .cover-row {
+      display: grid;
+      grid-template-columns: 36px minmax(0, 1fr);
+      gap: 8px;
+      align-items: center;
+      width: 100%;
+      min-height: 34px;
+      border: 1px solid var(--soft-line);
+      border-radius: 8px;
+      background: var(--panel-soft);
+      padding: 7px 9px;
+      font-size: 0.92rem;
+      color: var(--ink);
+      text-align: left;
+    }
+
+    .cover-row b {
+      color: var(--accent-strong);
+    }
+
+    button.cover-row {
+      cursor: pointer;
+    }
+
+    button.cover-row:hover {
+      border-color: rgba(36, 107, 254, 0.35);
+      background: #f7faff;
+    }
+
+    .cover-row.up {
+      border-color: rgba(21, 128, 61, 0.24);
+      background: rgba(21, 128, 61, 0.08);
+    }
+
+    .cover-row.up b {
+      color: #15803d;
+    }
+
+    .cover-row.down {
+      border-color: rgba(220, 38, 38, 0.24);
+      background: rgba(220, 38, 38, 0.08);
+    }
+
+    .cover-row.down b {
+      color: #dc2626;
+    }
+
+    .metric-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .metric {
+      border: 1px solid var(--soft-line);
+      border-radius: 8px;
+      background: var(--panel-soft);
+      padding: 10px;
+    }
+
+    .metric span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.72rem;
+      font-weight: 850;
+      text-transform: uppercase;
+    }
+
+    .metric strong {
+      display: block;
+      margin-top: 4px;
+      font-size: 1.18rem;
+    }
+
+    .loading,
+    .error {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      padding: 24px;
+      text-align: center;
+      font-weight: 750;
+    }
+
+    .error {
+      color: var(--red);
+    }
+
+    @media (max-width: 940px) {
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+
+      .main-panel {
+        min-height: 620px;
+      }
+
+      .scene-wrap {
+        height: 520px;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .app-shell {
+        width: min(100% - 20px, 1220px);
+        padding-top: 18px;
+      }
+
+      .topbar,
+      .panel-head {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .scene-wrap {
+        height: 470px;
+      }
+
+      .metric-row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Bruhat order and applications</p>
+        <h1>Lecture 2: Weak Order</h1>
+      </div>
+      <div class="top-controls" aria-label="Group controls">
+        <div class="segmented" role="group" aria-label="Choose symmetric group">
+          <button id="group-s3" class="active" type="button">S₃</button>
+          <button id="group-s4" type="button">S₄</button>
+        </div>
+      </div>
+    </header>
+
+    <section class="workspace" aria-label="Weak order applet">
+      <section class="main-panel">
+        <div class="panel-head">
+          <div>
+            <h2 id="view-title">Braid arrangement for S₃</h2>
+            <p id="view-subtitle">A fixed 2D Hasse diagram; covers are w -&gt; w s_i when length increases.</p>
+          </div>
+          <div class="view-actions">
+            <div id="embedding-card" class="embedding-card hidden">
+              <div class="embedding-controls" role="group" aria-label="Choose S4 embedding">
+                <button id="embedding-ranked" class="active" type="button">Ranked</button>
+                <button id="embedding-regular" type="button">Permutahedron</button>
+              </div>
+            </div>
+            <div id="cayley-card" class="cayley-card">
+              <label class="cayley-toggle" for="show-cayley">
+                <input id="show-cayley" type="checkbox">
+                Cover relations
+              </label>
+            </div>
+            <button id="reset-view" type="button">Reset view</button>
+          </div>
+        </div>
+        <div class="scene-wrap">
+          <canvas id="scene-3d" class="hidden" aria-hidden="true" width="1" height="1"></canvas>
+          <canvas id="scene" aria-label="Rotatable weak-order diagram" width="788" height="600"></canvas>
+          <div id="scene-status" class="loading" style="display: none;">Loading diagram...</div>
+          <div id="scene-hint" class="scene-hint" style="display: none;">Drag to pan. Scroll or pinch to zoom. Select a label or strip.</div>
+        </div>
+        <div id="transposition-panel" class="transposition-panel" aria-label="Transpositions"><span class="transposition-title">Transpositions</span><button class="transposition-bubble " type="button" data-root="1-2" style="--root-color: #246bfe">(1,2)</button><button class="transposition-bubble " type="button" data-root="1-3" style="--root-color: #7c3aed">(1,3)</button><button class="transposition-bubble " type="button" data-root="2-3" style="--root-color: #15803d">(2,3)</button></div>
+      </section>
+
+      <aside class="side-panel" aria-label="Weak order data">
+        <section class="fact-card">
+          <h2>Mode</h2>
+          <div class="mode-tabs" role="group" aria-label="Choose visualization mode">
+            <button id="mode-weak" class="" type="button">Weak order</button>
+            <button id="mode-complex" type="button">Coxeter complex</button>
+            <button id="mode-braid" type="button" class="active">Braid arrangement</button>
+          </div>
+          <div class="metric-row" aria-label="Diagram counts">
+            <div class="metric">
+              <span>Vertices</span>
+              <strong id="metric-vertices">6</strong>
+            </div>
+            <div class="metric">
+              <span id="metric-covers-label">Lines</span>
+              <strong id="metric-covers">3</strong>
+            </div>
+            <div class="metric">
+              <span>Rank</span>
+              <strong id="metric-rank">2</strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="fact-card">
+          <h2>Selected permutation</h2>
+          <dl class="facts">
+            <div>
+              <dt>Permutation</dt>
+              <dd id="fact-permutation">123</dd>
+            </div>
+            <div>
+              <dt>Length</dt>
+              <dd id="fact-length">0</dd>
+            </div>
+            <div>
+              <dt>Right descents</dt>
+              <dd id="fact-descents">none</dd>
+            </div>
+            <div>
+              <dt>Inversions</dt>
+              <dd id="fact-inversions">none</dd>
+            </div>
+          </dl>
+        </section>
+
+        <section class="fact-card">
+          <h2 id="cover-card-title">Adjacent chambers</h2>
+          <p id="cover-card-note">Right multiplication across a chamber wall.</p>
+          <div id="cover-list" class="cover-list"><button class="cover-row up" type="button" data-adjacent-key="213"><b>s₁</b><span>123 -&gt; 213</span></button><button class="cover-row up" type="button" data-adjacent-key="132"><b>s₂</b><span>123 -&gt; 132</span></button></div>
+        </section>
+
+        <section id="legend-card" class="fact-card hidden">
+          <h2 id="legend-title">Disk colors</h2>
+          <div id="legend" class="legend"><div class="legend-item"><span class="swatch" style="--swatch: #246bfe"></span><span>(1,2) disk</span></div><div class="legend-item"><span class="swatch" style="--swatch: #7c3aed"></span><span>(1,3) disk</span></div><div class="legend-item"><span class="swatch" style="--swatch: #15803d"></span><span>(2,3) disk</span></div></div>
+        </section>
+      </aside>
+    </section>
+  </main>
+
+  <script>
+    const state = {
+      n: 3,
+      mode: "weakOrder",
+      selectedKey: "123",
+      selectedRootKeys: [],
+      embedding: "ranked",
+      showCayley: false,
+      hoveredKey: null,
+      graph: null,
+      complex: null,
+      yaw: 0,
+      pitch: 0,
+      rotation: identityMatrix(),
+      zoom: 1,
+      panX: 0,
+      panY: 0,
+      depthFading: false,
+      dragging: false,
+      moved: false,
+      lastPointer: null,
+      lastTrackball: null,
+      activePointers: new Map(),
+      pinching: false,
+      pinchStartDistance: 0,
+      pinchStartZoom: 1,
+      projected: [],
+      braidHitRegions: [],
+    };
+
+    const els = {
+      canvas: document.getElementById("scene"),
+      canvas3d: document.getElementById("scene-3d"),
+      status: document.getElementById("scene-status"),
+      s3: document.getElementById("group-s3"),
+      s4: document.getElementById("group-s4"),
+      modeWeak: document.getElementById("mode-weak"),
+      modeComplex: document.getElementById("mode-complex"),
+      modeBraid: document.getElementById("mode-braid"),
+      embeddingCard: document.getElementById("embedding-card"),
+      embeddingRanked: document.getElementById("embedding-ranked"),
+      embeddingRegular: document.getElementById("embedding-regular"),
+      cayleyCard: document.getElementById("cayley-card"),
+      showCayley: document.getElementById("show-cayley"),
+      reset: document.getElementById("reset-view"),
+      title: document.getElementById("view-title"),
+      subtitle: document.getElementById("view-subtitle"),
+      metricVertices: document.getElementById("metric-vertices"),
+      metricCoversLabel: document.getElementById("metric-covers-label"),
+      metricCovers: document.getElementById("metric-covers"),
+      metricRank: document.getElementById("metric-rank"),
+      factPermutation: document.getElementById("fact-permutation"),
+      factLength: document.getElementById("fact-length"),
+      factDescents: document.getElementById("fact-descents"),
+      factInversions: document.getElementById("fact-inversions"),
+      coverCardTitle: document.getElementById("cover-card-title"),
+      coverCardNote: document.getElementById("cover-card-note"),
+      coverList: document.getElementById("cover-list"),
+      legendCard: document.getElementById("legend-card"),
+      legendTitle: document.getElementById("legend-title"),
+      legend: document.getElementById("legend"),
+      transpositionPanel: document.getElementById("transposition-panel"),
+      hint: document.getElementById("scene-hint"),
+    };
+
+    const ctx = els.canvas.getContext("2d");
+    const gl = els.canvas3d.getContext("webgl", { alpha: true, antialias: true });
+    let braidGlProgram = null;
+    let braidGlBuffer = null;
+    const edgeColors = ["#246bfe", "#15803d", "#a16207"];
+    const coverRelationColor = "#475569";
+    const inversionCircleColors = {
+      "1-2": "#246bfe",
+      "1-3": "#7c3aed",
+      "1-4": "#dc2626",
+      "2-3": "#15803d",
+      "2-4": "#0891b2",
+      "3-4": "#a16207",
+    };
+    const chamberFill = "rgba(36, 107, 254, 0.08)";
+    const chamberStroke = "rgba(22, 32, 51, 0.38)";
+    const diskBorderColor = "rgba(22, 32, 51, 0.55)";
+    const rankedRootVectors = {
+      "1-2": { x: -1.86, y: 1.05, z: 0.42 },
+      "1-3": { x: -1.86, y: 1.05, z: -0.62 },
+      "1-4": { x: 1.86, y: 1.05, z: 0.34 },
+      "2-3": { x: 0.62, y: 1.05, z: 0.66 },
+      "2-4": { x: 1.86, y: 1.05, z: -0.36 },
+      "3-4": { x: -0.62, y: 1.05, z: -0.44 },
+    };
+    const s3HexagonCoords = {
+      123: [0.00, -2.12, 0],
+      213: [-1.84, -1.06, 0],
+      231: [-1.84, 1.06, 0],
+      321: [0.00, 2.12, 0],
+      312: [1.84, 1.06, 0],
+      132: [1.84, -1.06, 0],
+    };
+    const flatRankedS4Coords = {
+      1234: [0.000000, -3.150000, 0.011646],
+      1243: [-2.160659, -2.100000, 1.516051],
+      1324: [0.000000, -2.100000, -2.715684],
+      1342: [-1.228003, -1.050000, -3.037925],
+      1423: [-3.388661, -1.050000, 1.193810],
+      1432: [-3.388662, 0.000000, 1.533520],
+      2134: [2.160659, -2.100000, 1.516051],
+      2143: [-0.000000, -1.050000, 3.020455],
+      2314: [3.388661, -1.050000, 1.193810],
+      2341: [3.388661, 0.000000, -1.533519],
+      2413: [0.000000, 0.000000, 3.360165],
+      2431: [1.228003, 1.050000, 3.037924],
+      3124: [1.228003, -1.050000, -3.037925],
+      3142: [-0.000000, 0.000000, -3.360166],
+      3214: [3.388662, 0.000000, 1.533520],
+      3241: [3.388661, 1.050000, -1.193809],
+      3412: [-0.000000, 1.050000, -3.020455],
+      3421: [2.160658, 2.100000, -1.516051],
+      4123: [-3.388661, 0.000000, -1.533519],
+      4132: [-3.388661, 1.050000, -1.193809],
+      4213: [-1.228003, 1.050000, 3.037924],
+      4231: [0.000000, 2.100000, 2.715683],
+      4312: [-2.160658, 2.100000, -1.516051],
+      4321: [-0.000000, 3.150000, -0.011646],
+    };
+
+    function identity(n) {
+      return Array.from({ length: n }, (_, i) => i + 1);
+    }
+
+    function permKey(perm) {
+      return perm.join("");
+    }
+
+    function simpleText(i) {
+      return `s${toSubscript(i)}`;
+    }
+
+    function groupText(n) {
+      return `S${toSubscript(n)}`;
+    }
+
+    function toSubscript(value) {
+      const digits = { 0: "₀", 1: "₁", 2: "₂", 3: "₃", 4: "₄", 5: "₅", 6: "₆", 7: "₇", 8: "₈", 9: "₉" };
+      return String(value).split("").map((digit) => digits[digit]).join("");
+    }
+
+    function permutations(n) {
+      const result = [];
+      const used = Array(n + 1).fill(false);
+      const current = [];
+      function backtrack() {
+        if (current.length === n) {
+          result.push([...current]);
+          return;
+        }
+        for (let value = 1; value <= n; value += 1) {
+          if (used[value]) continue;
+          used[value] = true;
+          current.push(value);
+          backtrack();
+          current.pop();
+          used[value] = false;
+        }
+      }
+      backtrack();
+      return result;
+    }
+
+    function rightSimple(perm, i) {
+      const next = [...perm];
+      [next[i - 1], next[i]] = [next[i], next[i - 1]];
+      return next;
+    }
+
+    function rotate2dPoint(point, angle) {
+      const c = Math.cos(angle);
+      const s = Math.sin(angle);
+      return {
+        x: point.x * c - point.y * s,
+        y: point.x * s + point.y * c,
+        z: point.z,
+      };
+    }
+
+    function s3ComplexPoint(point) {
+      const rotated = rotate2dPoint(point, -5 * Math.PI / 6);
+      return { x: -rotated.x, y: rotated.y, z: rotated.z };
+    }
+
+    function inversePermutation(perm) {
+      const inverse = Array(perm.length);
+      perm.forEach((value, index) => {
+        inverse[value - 1] = index + 1;
+      });
+      return inverse;
+    }
+
+    function inversionPairs(perm) {
+      const pairs = [];
+      for (let i = 0; i < perm.length; i += 1) {
+        for (let j = i + 1; j < perm.length; j += 1) {
+          if (perm[i] > perm[j]) pairs.push([perm[i], perm[j]]);
+        }
+      }
+      return pairs;
+    }
+
+    function positiveRootKey(a, b) {
+      return `${Math.min(a, b)}-${Math.max(a, b)}`;
+    }
+
+    function transpositionText(rootKey) {
+      const [a, b] = rootKey.split("-").map(Number);
+      return `(${a},${b})`;
+    }
+
+    function allRootKeys(n) {
+      const roots = [];
+      for (let a = 1; a <= n; a += 1) {
+        for (let b = a + 1; b <= n; b += 1) roots.push(`${a}-${b}`);
+      }
+      return roots;
+    }
+
+    function sortedRootKeys(pairs) {
+      return pairs.map(([a, b]) => positiveRootKey(a, b)).sort();
+    }
+
+    function sameRootSet(left, right) {
+      if (left.length !== right.length) return false;
+      const a = [...left].sort();
+      const b = [...right].sort();
+      return a.every((key, index) => key === b[index]);
+    }
+
+    function selectChamber(key) {
+      if (key === state.selectedKey) {
+        state.selectedKey = null;
+        state.selectedRootKeys = [];
+        return;
+      }
+      state.selectedKey = key;
+      const chamber = state.complex?.chamberByKey.get(key);
+      state.selectedRootKeys = chamber ? sortedRootKeys(chamber.inversions) : [];
+    }
+
+    function selectWeakPermutation(key) {
+      state.selectedKey = key === state.selectedKey ? null : key;
+      state.selectedRootKeys = [];
+    }
+
+    function syncRootsFromSelectedChamber() {
+      if (!state.complex || !state.selectedKey) {
+        state.selectedRootKeys = [];
+        return;
+      }
+      const chamber = state.complex.chamberByKey.get(state.selectedKey);
+      state.selectedRootKeys = chamber ? sortedRootKeys(chamber.inversions) : [];
+    }
+
+    function syncChamberFromRoots() {
+      if (!state.complex) return;
+      if (!state.selectedRootKeys.length) {
+        state.selectedKey = permKey(identity(state.n));
+        return;
+      }
+      const match = state.complex.chambers.find((chamber) =>
+        sameRootSet(state.selectedRootKeys, sortedRootKeys(chamber.inversions))
+      );
+      state.selectedKey = match ? match.key : null;
+    }
+
+    function toggleSelectedRoot(rootKey) {
+      if (state.selectedRootKeys.includes(rootKey)) {
+        state.selectedRootKeys = state.selectedRootKeys.filter((key) => key !== rootKey);
+      } else {
+        state.selectedRootKeys = [...state.selectedRootKeys, rootKey].sort();
+      }
+      syncChamberFromRoots();
+      renderUi();
+      drawScene();
+    }
+
+    function adjacentChambers(chamber) {
+      return Array.from({ length: chamber.perm.length - 1 }, (_, index) => {
+        const simple = index + 1;
+        const to = rightSimple(chamber.perm, simple);
+        const toKey = permKey(to);
+        const fromLength = lengthOf(chamber.perm);
+        const toLength = lengthOf(to);
+        return {
+          simple,
+          to,
+          toKey,
+          direction: toLength > fromLength ? "up" : "down",
+        };
+      });
+    }
+
+    function adjacentRowsHtml(selected) {
+      return adjacentChambers(selected).map((neighbor) => (
+        `<button class="cover-row ${neighbor.direction}" type="button" data-adjacent-key="${neighbor.toKey}"><b>${simpleText(neighbor.simple)}</b><span>${neighbor.direction === "up" ? `${selected.key} -> ${neighbor.toKey}` : `${neighbor.toKey} -> ${selected.key}`}</span></button>`
+      )).join("");
+    }
+
+    function lengthOf(perm) {
+      return inversionPairs(perm).length;
+    }
+
+    function descents(perm) {
+      const result = [];
+      for (let i = 1; i < perm.length; i += 1) {
+        if (perm[i - 1] > perm[i]) result.push(i);
+      }
+      return result;
+    }
+
+    function outgoingCovers(perm) {
+      const before = lengthOf(perm);
+      const covers = [];
+      for (let i = 1; i < perm.length; i += 1) {
+        const next = rightSimple(perm, i);
+        if (lengthOf(next) === before + 1) {
+          covers.push({ simple: i, to: next, toKey: permKey(next) });
+        }
+      }
+      return covers;
+    }
+
+    function basisProjection(coords) {
+      const centered = coords.map((value) => value - (coords.length + 1) / 2);
+      if (coords.length === 4) {
+        return {
+          x: (centered[0] - centered[1] - centered[2] + centered[3]) / 2,
+          y: (3 * centered[0] + centered[1] - centered[2] - 3 * centered[3]) / Math.sqrt(20),
+          z: (centered[0] - 3 * centered[1] + 3 * centered[2] - centered[3]) / Math.sqrt(20),
+        };
+      }
+      return {
+        x: (centered[0] - centered[1]) / Math.sqrt(2),
+        y: (centered[0] + centered[1] - 2 * centered[2]) / Math.sqrt(6),
+        z: 0,
+      };
+    }
+
+    function subsetProjection(subset, n) {
+      const values = Array.from({ length: n }, (_, index) => subset.has(index + 1) ? 1 : 0);
+      const mean = values.reduce((sum, value) => sum + value, 0) / n;
+      const centered = values.map((value) => value - mean);
+      if (n === 4) {
+        return {
+          x: (centered[0] - centered[1] - centered[2] + centered[3]) / 2,
+          y: (3 * centered[0] + centered[1] - centered[2] - 3 * centered[3]) / Math.sqrt(20),
+          z: (centered[0] - 3 * centered[1] + 3 * centered[2] - centered[3]) / Math.sqrt(20),
+        };
+      }
+      return {
+        x: (centered[0] - centered[1]) / Math.sqrt(2),
+        y: (centered[0] + centered[1] - 2 * centered[2]) / Math.sqrt(6),
+        z: 0,
+      };
+    }
+
+    function rootProjection(a, b, n) {
+      const centered = Array(n).fill(0);
+      centered[a - 1] = 1;
+      centered[b - 1] = -1;
+      if (n === 4) {
+        return {
+          x: (centered[0] - centered[1] - centered[2] + centered[3]) / 2,
+          y: (3 * centered[0] + centered[1] - centered[2] - 3 * centered[3]) / Math.sqrt(20),
+          z: (centered[0] - 3 * centered[1] + 3 * centered[2] - centered[3]) / Math.sqrt(20),
+        };
+      }
+      return {
+        x: (centered[0] - centered[1]) / Math.sqrt(2),
+        y: (centered[0] + centered[1] - 2 * centered[2]) / Math.sqrt(6),
+        z: 0,
+      };
+    }
+
+    function normalizePoint(point, radius = 3.05) {
+      const norm = Math.hypot(point.x, point.y, point.z) || 1;
+      return {
+        x: radius * point.x / norm,
+        y: radius * point.y / norm,
+        z: radius * point.z / norm,
+      };
+    }
+
+    function dotPoint(a, b) {
+      return a.x * b.x + a.y * b.y + a.z * b.z;
+    }
+
+    function crossPoint(a, b) {
+      return {
+        x: a.y * b.z - a.z * b.y,
+        y: a.z * b.x - a.x * b.z,
+        z: a.x * b.y - a.y * b.x,
+      };
+    }
+
+    function sphericalArcPoints(a, b, steps = 18) {
+      const radius = Math.hypot(a.x, a.y, a.z) || 1;
+      const unitA = normalizePoint(a, 1);
+      const unitB = normalizePoint(b, 1);
+      const cosine = Math.max(-1, Math.min(1, dotPoint(unitA, unitB)));
+      const theta = Math.acos(cosine);
+      if (theta < 1e-6) return [a, b];
+      const sinTheta = Math.sin(theta);
+      const points = [];
+      for (let step = 0; step <= steps; step += 1) {
+        const t = step / steps;
+        const left = Math.sin((1 - t) * theta) / sinTheta;
+        const right = Math.sin(t * theta) / sinTheta;
+        points.push({
+          x: radius * (left * unitA.x + right * unitB.x),
+          y: radius * (left * unitA.y + right * unitB.y),
+          z: radius * (left * unitA.z + right * unitB.z),
+        });
+      }
+      return points;
+    }
+
+    function subsetKey(values) {
+      return values.join("");
+    }
+
+    function buildCoxeterComplex(n) {
+      const perms = permutations(n);
+      const vertexMap = new Map();
+      const vertices = [];
+      const chambers = [];
+      const cayleyEdges = [];
+      const chamberByKey = new Map();
+      const radius = n === 4 ? 3.0 : 2.2;
+
+      function getVertex(values) {
+        const key = subsetKey(values);
+        if (vertexMap.has(key)) return vertexMap.get(key);
+        const subset = new Set(values);
+        const rawProjected = normalizePoint(subsetProjection(subset, n), radius);
+        const projected = n === 3 ? s3ComplexPoint(rawProjected) : rawProjected;
+        const vertex = { key, values: [...values], position: projected };
+        vertexMap.set(key, vertex);
+        vertices.push(vertex);
+        return vertex;
+      }
+
+      perms.forEach((perm) => {
+        const chain = [];
+        for (let size = 1; size < n; size += 1) {
+          const values = perm.slice(0, size).sort((a, b) => a - b);
+          chain.push(getVertex(values));
+        }
+        const centerRaw = chain.reduce((total, vertex) => ({
+          x: total.x + vertex.position.x,
+          y: total.y + vertex.position.y,
+          z: total.z + vertex.position.z,
+        }), { x: 0, y: 0, z: 0 });
+        const center = normalizePoint(centerRaw, radius * 0.72);
+        const chamber = {
+          key: permKey(perm),
+          perm,
+          vertices: chain,
+          center,
+          covers: outgoingCovers(perm),
+          rank: lengthOf(perm),
+          descents: descents(perm),
+          inversions: inversionPairs(perm),
+        };
+        chambers.push(chamber);
+        chamberByKey.set(chamber.key, chamber);
+      });
+
+      chambers.forEach((chamber) => {
+        for (let i = 1; i < n; i += 1) {
+          const nextKey = permKey(rightSimple(chamber.perm, i));
+          if (chamber.key < nextKey) {
+            const to = chamberByKey.get(nextKey);
+            cayleyEdges.push({ from: chamber, to, simple: i });
+          }
+        }
+      });
+
+      return { n, vertices, chambers, cayleyEdges, chamberByKey, radius };
+    }
+
+    function buildGraph(n) {
+      const perms = permutations(n);
+      const maxRank = (n * (n - 1)) / 2;
+      const scaleX = n === 3 ? 2.05 : 1.72;
+      const scaleY = n === 3 ? 1 : 1.72;
+      const rankStep = n === 3 ? 1.45 : 1.05;
+      const depthScale = n === 3 ? 0 : 1.72;
+
+      const vertices = perms.map((perm) => {
+        const rank = lengthOf(perm);
+        const inversions = inversionPairs(perm);
+        const permutahedronCoords = n === 4 ? inversePermutation(perm) : perm;
+        const projection = basisProjection(permutahedronCoords);
+        const key = permKey(perm);
+        const rankedS4 = n === 4 && state.embedding === "ranked";
+        const hiddenFlatRankedS4 = n === 4 && state.embedding === "flatRanked";
+        const hexS3 = n === 3 ? s3HexagonCoords[key] : null;
+        const solved = hiddenFlatRankedS4 ? flatRankedS4Coords[key] : null;
+        const rankedPosition = rankedS4 ? inversions.reduce((total, [a, b]) => {
+          const vector = rankedRootVectors[positiveRootKey(a, b)];
+          return {
+            x: total.x + vector.x,
+            y: total.y + vector.y,
+            z: total.z + vector.z,
+          };
+        }, { x: 0, y: -maxRank * rankStep / 2, z: 0 }) : null;
+        return {
+          key,
+          perm,
+          permutahedronCoords,
+          rank,
+          descents: descents(perm),
+          inversions,
+          covers: outgoingCovers(perm),
+          position: {
+            x: hexS3 ? hexS3[0] : solved ? solved[0] : rankedPosition ? rankedPosition.x : projection.x * scaleX,
+            y: hexS3 ? hexS3[1] : solved ? solved[1] : rankedPosition ? rankedPosition.y : n === 3 ? (rank - maxRank / 2) * rankStep : projection.y * scaleY,
+            z: hexS3 ? hexS3[2] : solved ? solved[2] : rankedPosition ? rankedPosition.z : projection.z * depthScale,
+          },
+        };
+      });
+      if (n === 4 && state.embedding === "ranked") {
+        [["2341", "3214"], ["1432", "4123"]].forEach(([leftKey, rightKey]) => {
+          const left = vertices.find((vertex) => vertex.key === leftKey);
+          const right = vertices.find((vertex) => vertex.key === rightKey);
+          if (!left || !right) return;
+          const leftPosition = { ...left.position };
+          left.position = { ...right.position };
+          right.position = leftPosition;
+        });
+      }
+
+      const byKey = new Map(vertices.map((vertex) => [vertex.key, vertex]));
+      const edges = [];
+      vertices.forEach((from) => {
+        from.covers.forEach((cover) => {
+          const to = byKey.get(cover.toKey);
+          edges.push({ from, to, simple: cover.simple });
+        });
+      });
+      return { n, maxRank, vertices, edges, byKey };
+    }
+
+    function roundRect(ctx, x, y, width, height, radius) {
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.arcTo(x + width, y, x + width, y + height, radius);
+      ctx.arcTo(x + width, y + height, x, y + height, radius);
+      ctx.arcTo(x, y + height, x, y, radius);
+      ctx.arcTo(x, y, x + width, y, radius);
+      ctx.closePath();
+    }
+
+    function isGeometryMode() {
+      return state.mode === "coxeterComplex" || state.mode === "braidArrangement";
+    }
+
+    function rebuildScene(reset = true) {
+      if (isGeometryMode()) {
+        state.complex = buildCoxeterComplex(state.n);
+      } else {
+        state.graph = buildGraph(state.n);
+      }
+      if (reset) resetView();
+      else drawScene();
+      renderUi();
+      els.status.style.display = "none";
+    }
+
+    function resetView() {
+      state.yaw = 0;
+      state.pitch = 0;
+      state.rotation = initialRotation();
+      state.zoom = isGeometryMode()
+        ? state.n === 3 ? 0.62 : 1
+        : state.n === 3 ? 1 : state.embedding === "ranked" ? 0.86 : 0.95;
+      state.panX = 0;
+      state.panY = 0;
+      state.depthFading = false;
+      state.activePointers.clear();
+      state.pinching = false;
+      state.lastPointer = null;
+      state.lastTrackball = null;
+      drawScene();
+    }
+
+    function resizeCanvas() {
+      const rect = els.canvas.getBoundingClientRect();
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const width = Math.max(Math.floor(rect.width * dpr), 1);
+      const height = Math.max(Math.floor(rect.height * dpr), 1);
+      if (els.canvas.width !== width || els.canvas.height !== height) {
+        els.canvas.width = width;
+        els.canvas.height = height;
+      }
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    function resizeWebglCanvas() {
+      if (!gl) return;
+      const rect = els.canvas3d.getBoundingClientRect();
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const width = Math.max(Math.floor(rect.width * dpr), 1);
+      const height = Math.max(Math.floor(rect.height * dpr), 1);
+      if (els.canvas3d.width !== width || els.canvas3d.height !== height) {
+        els.canvas3d.width = width;
+        els.canvas3d.height = height;
+      }
+      gl.viewport(0, 0, width, height);
+    }
+
+    function clearWebglCanvas() {
+      if (!gl) return;
+      resizeWebglCanvas();
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    }
+
+    function compileShader(type, source) {
+      const shader = gl.createShader(type);
+      gl.shaderSource(shader, source);
+      gl.compileShader(shader);
+      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        throw new Error(gl.getShaderInfoLog(shader) || "WebGL shader compilation failed.");
+      }
+      return shader;
+    }
+
+    function ensureBraidGlProgram() {
+      if (!gl) return null;
+      if (braidGlProgram) return braidGlProgram;
+      const vertexShader = compileShader(gl.VERTEX_SHADER, `
+        attribute vec3 a_position;
+        attribute vec4 a_color;
+        uniform mat3 u_rotation;
+        uniform vec2 u_scale;
+        uniform vec2 u_pan;
+        uniform float u_radius;
+        varying vec4 v_color;
+        void main() {
+          vec3 rotated = u_rotation * a_position;
+          vec2 clip = vec2(
+            (u_pan.x + rotated.x * u_scale.x),
+            (u_pan.y + rotated.y * u_scale.y)
+          );
+          gl_Position = vec4(clip, -rotated.z / (u_radius * 1.08), 1.0);
+          v_color = a_color;
+        }
+      `);
+      const fragmentShader = compileShader(gl.FRAGMENT_SHADER, `
+        precision mediump float;
+        varying vec4 v_color;
+        void main() {
+          gl_FragColor = v_color;
+        }
+      `);
+      const program = gl.createProgram();
+      gl.attachShader(program, vertexShader);
+      gl.attachShader(program, fragmentShader);
+      gl.linkProgram(program);
+      if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+        throw new Error(gl.getProgramInfoLog(program) || "WebGL program linking failed.");
+      }
+      braidGlProgram = {
+        program,
+        position: gl.getAttribLocation(program, "a_position"),
+        color: gl.getAttribLocation(program, "a_color"),
+        rotation: gl.getUniformLocation(program, "u_rotation"),
+        scale: gl.getUniformLocation(program, "u_scale"),
+        pan: gl.getUniformLocation(program, "u_pan"),
+        radius: gl.getUniformLocation(program, "u_radius"),
+      };
+      braidGlBuffer = gl.createBuffer();
+      return braidGlProgram;
+    }
+
+    function renderUi() {
+      if (isGeometryMode()) {
+        renderComplexUi();
+        return;
+      }
+      const graph = state.graph;
+      const selected = state.selectedKey ? graph.byKey.get(state.selectedKey) : null;
+      if (state.selectedKey && !selected) state.selectedKey = null;
+      els.s3.classList.toggle("active", state.n === 3);
+      els.s4.classList.toggle("active", state.n === 4);
+      els.modeWeak.classList.add("active");
+      els.modeComplex.classList.remove("active");
+      els.modeBraid.classList.remove("active");
+      els.embeddingCard.classList.toggle("hidden", state.n !== 4);
+      els.cayleyCard.classList.add("hidden");
+      els.transpositionPanel.classList.add("hidden");
+      els.legendCard.classList.add("hidden");
+      els.hint.style.display = "none";
+      els.embeddingRanked.classList.toggle("active", state.embedding === "ranked");
+      els.embeddingRegular.classList.toggle("active", state.embedding === "regular");
+      els.title.textContent = `Right weak order on ${groupText(state.n)}`;
+      els.subtitle.textContent = state.n === 4
+        ? state.embedding === "ranked"
+          ? "Ranked: height is Coxeter length, and equal root labels have equal edge directions."
+          : state.embedding === "flatRanked"
+            ? "Face-flat ranked realization: Coxeter length is height, with flat square and hexagon faces."
+          : "Permutahedron: vertices use coordinates given by the one-line notation of w^-1."
+        : "A fixed 2D Hasse diagram; covers are w -> w s_i when length increases.";
+      els.hint.textContent = state.n === 4
+        ? state.embedding === "regular"
+          ? "Drag to rotate. Scroll or pinch to zoom. Select a permutation for its covers."
+          : "Drag to pan. Scroll or pinch to zoom. Select a permutation for its covers."
+        : "Drag to pan. Scroll or pinch to zoom. Select a permutation for its covers.";
+      els.metricVertices.textContent = String(graph.vertices.length);
+      els.metricCoversLabel.textContent = "Covers";
+      els.metricCovers.textContent = String(graph.edges.length);
+      els.metricRank.textContent = String(graph.maxRank);
+      if (selected) {
+        els.factPermutation.textContent = selected.key;
+        els.factLength.textContent = String(selected.rank);
+        els.factDescents.innerHTML = selected.descents.length
+          ? selected.descents.map(simpleText).join(", ")
+          : "none";
+        els.factInversions.textContent = selected.inversions.length
+          ? selected.inversions.map(([a, b]) => `(${Math.min(a, b)},${Math.max(a, b)})`).join(", ")
+          : "none";
+        els.coverList.innerHTML = adjacentRowsHtml(selected);
+      } else {
+        els.factPermutation.textContent = "none";
+        els.factLength.textContent = "none";
+        els.factDescents.innerHTML = "none";
+        els.factInversions.textContent = "none";
+        els.coverList.innerHTML = `<div class="cover-row"><b>--</b><span>No permutation selected.</span></div>`;
+      }
+      els.coverCardTitle.textContent = "Adjacent permutations";
+      els.coverCardNote.textContent = "Right multiplication across an adjacent wall.";
+      els.legendTitle.textContent = "Edge colors";
+      els.legend.innerHTML = Array.from({ length: state.n - 1 }, (_, index) => (
+        `<div class="legend-item"><span class="swatch" style="--swatch: ${edgeColors[index]}"></span><span>${simpleText(index + 1)} edges</span></div>`
+      )).join("");
+    }
+
+    function renderComplexUi() {
+      const complex = state.complex;
+      const selected = state.selectedKey ? complex.chamberByKey.get(state.selectedKey) : null;
+      if (state.selectedKey && !selected) state.selectedKey = null;
+      if (!Array.isArray(state.selectedRootKeys)) state.selectedRootKeys = [];
+      if (selected && !sameRootSet(state.selectedRootKeys, sortedRootKeys(selected.inversions))) {
+        state.selectedRootKeys = sortedRootKeys(selected.inversions);
+      }
+      const invalidSelection = !selected && state.selectedRootKeys.length > 0;
+      els.s3.classList.toggle("active", state.n === 3);
+      els.s4.classList.toggle("active", state.n === 4);
+      els.modeWeak.classList.remove("active");
+      els.modeComplex.classList.toggle("active", state.mode === "coxeterComplex");
+      els.modeBraid.classList.toggle("active", state.mode === "braidArrangement");
+      els.embeddingCard.classList.add("hidden");
+      els.cayleyCard.classList.remove("hidden");
+      els.transpositionPanel.classList.remove("hidden");
+      els.legendCard.classList.add("hidden");
+      els.hint.style.display = "none";
+      els.showCayley.checked = state.showCayley;
+      els.title.textContent = state.mode === "braidArrangement"
+        ? `Braid arrangement for ${groupText(state.n)}`
+        : `Coxeter complex for ${groupText(state.n)}`;
+      els.hint.textContent = state.mode === "braidArrangement"
+        ? state.n === 4
+          ? "Drag to rotate. Scroll or pinch to zoom. Select a label or disk."
+          : "Drag to pan. Scroll or pinch to zoom. Select a label or strip."
+        : state.n === 4
+        ? "Drag to rotate. Scroll or pinch to zoom. Select a chamber."
+        : "Drag to pan. Scroll or pinch to zoom. Select a chamber.";
+      els.metricVertices.textContent = String(complex.vertices.length);
+      els.metricCoversLabel.textContent = state.mode === "braidArrangement"
+        ? state.n === 3 ? "Lines" : "Planes"
+        : "Chambers";
+      els.metricCovers.textContent = state.mode === "braidArrangement"
+        ? String(allRootKeys(state.n).length)
+        : String(complex.chambers.length);
+      els.metricRank.textContent = String(state.n - 1);
+      if (invalidSelection) {
+        els.factPermutation.textContent = "none";
+        els.factLength.textContent = "--";
+        els.factDescents.innerHTML = "--";
+        els.factInversions.textContent = "--";
+        els.coverList.innerHTML = `<div class="cover-row"><b>--</b><span>Selected transpositions are not an inversion set.</span></div>`;
+      } else if (selected) {
+        els.factPermutation.textContent = selected.key;
+        els.factLength.textContent = String(selected.rank);
+        els.factDescents.innerHTML = selected.descents.length ? selected.descents.map(simpleText).join(", ") : "none";
+        els.factInversions.textContent = selected.inversions.length
+          ? selected.inversions.map(([a, b]) => `(${Math.min(a, b)},${Math.max(a, b)})`).join(", ")
+          : "none";
+        els.coverList.innerHTML = adjacentRowsHtml(selected);
+      } else {
+        els.factPermutation.textContent = "none";
+        els.factLength.textContent = "none";
+        els.factDescents.innerHTML = "none";
+        els.factInversions.textContent = "none";
+        els.coverList.innerHTML = `<div class="cover-row"><b>--</b><span>No permutation selected.</span></div>`;
+      }
+      els.coverCardTitle.textContent = "Adjacent chambers";
+      els.coverCardNote.textContent = "Right multiplication across a chamber wall.";
+      els.legendTitle.textContent = state.mode === "braidArrangement" ? "Disk colors" : "Edge colors";
+      const rootButtons = allRootKeys(state.n).map((rootKey) => (
+        `<button class="transposition-bubble ${state.selectedRootKeys.includes(rootKey) ? "active" : ""}" type="button" data-root="${rootKey}" style="--root-color: ${inversionCircleColors[rootKey] || edgeColors[0]}">${transpositionText(rootKey)}</button>`
+      )).join("");
+      els.transpositionPanel.innerHTML = `<span class="transposition-title">Transpositions</span>${rootButtons}`;
+      els.legend.innerHTML = state.mode === "braidArrangement"
+        ? allRootKeys(state.n).map((rootKey) => (
+          `<div class="legend-item"><span class="swatch" style="--swatch: ${inversionCircleColors[rootKey] || edgeColors[0]}"></span><span>${transpositionText(rootKey)} disk</span></div>`
+        )).join("")
+        : `
+          <div class="legend-item"><span class="swatch" style="--swatch: ${chamberStroke}"></span><span>Spherical chambers</span></div>
+          <div class="legend-item"><span class="swatch" style="--swatch: ${coverRelationColor}"></span><span>Cover relations overlay</span></div>
+        `;
+    }
+
+    function refreshLabels() {
+      drawScene();
+    }
+
+    function setGroup(n) {
+      if (state.n === n) return;
+      state.n = n;
+      state.selectedKey = permKey(identity(n));
+      state.selectedRootKeys = [];
+      state.hoveredKey = null;
+      rebuildScene();
+    }
+
+    function isRankedView() {
+      return state.mode === "weakOrder" && (state.n === 3 || state.embedding === "ranked");
+    }
+
+    function isPlanarComplexView() {
+      return isGeometryMode() && state.n === 3;
+    }
+
+    function identityMatrix() {
+      return [
+        [1, 0, 0],
+        [0, 1, 0],
+        [0, 0, 1],
+      ];
+    }
+
+    function multiplyMatrix(left, right) {
+      return left.map((row, i) => right[0].map((_, j) =>
+        left[i][0] * right[0][j] + left[i][1] * right[1][j] + left[i][2] * right[2][j]
+      ));
+    }
+
+    function applyMatrix(matrix, point) {
+      return {
+        x: matrix[0][0] * point.x + matrix[0][1] * point.y + matrix[0][2] * point.z,
+        y: matrix[1][0] * point.x + matrix[1][1] * point.y + matrix[1][2] * point.z,
+        z: matrix[2][0] * point.x + matrix[2][1] * point.y + matrix[2][2] * point.z,
+      };
+    }
+
+    function rotationMatrix(axis, angle) {
+      const { x, y, z } = axis;
+      const c = Math.cos(angle);
+      const s = Math.sin(angle);
+      const t = 1 - c;
+      return [
+        [t * x * x + c, t * x * y - s * z, t * x * z + s * y],
+        [t * x * y + s * z, t * y * y + c, t * y * z - s * x],
+        [t * x * z - s * y, t * y * z + s * x, t * z * z + c],
+      ];
+    }
+
+    function rotationBetween(from, to) {
+      const source = normalizePoint(from, 1);
+      const target = normalizePoint(to, 1);
+      const axis = crossPoint(source, target);
+      const axisLength = Math.hypot(axis.x, axis.y, axis.z);
+      const dot = Math.max(-1, Math.min(1, dotPoint(source, target)));
+      if (axisLength < 1e-6) {
+        if (dot > 0) return identityMatrix();
+        const seed = Math.abs(source.x) < 0.75 ? { x: 1, y: 0, z: 0 } : { x: 0, y: 1, z: 0 };
+        const fallbackAxis = normalizePoint(crossPoint(source, seed), 1);
+        return rotationMatrix(fallbackAxis, Math.PI);
+      }
+      return rotationMatrix(normalizePoint(axis, 1), Math.atan2(axisLength, dot));
+    }
+
+    function initialRotation() {
+      if (!isGeometryMode() || state.n !== 4 || !state.complex) return identityMatrix();
+      const identityChamber = state.complex.chamberByKey.get(permKey(identity(4)));
+      if (!identityChamber) return identityMatrix();
+      return rotationBetween(identityChamber.center, { x: 0, y: -0.74, z: 0.67 });
+    }
+
+    function trackballVector(clientX, clientY) {
+      const rect = els.canvas.getBoundingClientRect();
+      const radius = Math.max(Math.min(rect.width, rect.height) * 0.48, 1);
+      const x = (clientX - rect.left - rect.width / 2 - state.panX) / radius;
+      const y = (rect.height / 2 + state.panY - (clientY - rect.top)) / radius;
+      const length2 = x * x + y * y;
+      if (length2 <= 1) return { x, y, z: Math.sqrt(1 - length2) };
+      const length = Math.sqrt(length2);
+      return { x: x / length, y: y / length, z: 0 };
+    }
+
+    function applyTrackballDrag(clientX, clientY) {
+      const next = trackballVector(clientX, clientY);
+      const previous = state.lastTrackball || next;
+      const axis = {
+        x: previous.y * next.z - previous.z * next.y,
+        y: previous.z * next.x - previous.x * next.z,
+        z: previous.x * next.y - previous.y * next.x,
+      };
+      const axisLength = Math.hypot(axis.x, axis.y, axis.z);
+      if (axisLength > 1e-6) {
+        const unitAxis = {
+          x: axis.x / axisLength,
+          y: axis.y / axisLength,
+          z: axis.z / axisLength,
+        };
+        const dot = Math.max(-1, Math.min(1, previous.x * next.x + previous.y * next.y + previous.z * next.z));
+        const angle = Math.atan2(axisLength, dot);
+        state.rotation = multiplyMatrix(rotationMatrix(unitAxis, angle), state.rotation);
+      }
+      state.lastTrackball = next;
+    }
+
+    function rotatePoint(point) {
+      if (isRankedView() || isPlanarComplexView()) return { ...point };
+      return applyMatrix(state.rotation, point);
+    }
+
+    function projectGraph() {
+      if (!state.graph) return [];
+      const rect = els.canvas.getBoundingClientRect();
+      const scale = Math.min(rect.width, rect.height) * state.zoom / (state.n === 3 ? 6.7 : 7.25);
+      const projected = state.graph.vertices.map((vertex) => {
+        const rotated = rotatePoint(vertex.position);
+        return {
+          vertex,
+          x: rect.width / 2 + state.panX + rotated.x * scale,
+          y: rect.height / 2 + state.panY - rotated.y * scale,
+          z: rotated.z,
+        };
+      });
+      const minZ = Math.min(...projected.map((item) => item.z));
+      const maxZ = Math.max(...projected.map((item) => item.z));
+      const span = Math.max(maxZ - minZ, 0.001);
+      projected.forEach((item) => {
+        item.depth = (item.z - minZ) / span;
+      });
+      state.projected = projected;
+      return projected;
+    }
+
+    function projectedByKey() {
+      return new Map(state.projected.map((item) => [item.vertex.key, item]));
+    }
+
+    function drawScene() {
+      if (isGeometryMode()) {
+        drawComplexScene();
+        return;
+      }
+      els.canvas3d.classList.add("hidden");
+      clearWebglCanvas();
+      if (!state.graph) return;
+      resizeCanvas();
+      const rect = els.canvas.getBoundingClientRect();
+      ctx.clearRect(0, 0, rect.width, rect.height);
+      const projected = projectGraph();
+      const byKey = projectedByKey();
+
+      ctx.lineCap = "round";
+      const applyDepthFading = state.depthFading && !isRankedView();
+      state.graph.edges.forEach((edge) => {
+        const from = byKey.get(edge.from.key);
+        const to = byKey.get(edge.to.key);
+        const depth = Math.min(from.depth, to.depth);
+        ctx.globalAlpha = applyDepthFading ? 0.24 + depth * 0.54 : 0.78;
+        ctx.strokeStyle = edgeColors[edge.simple - 1];
+        ctx.lineWidth = state.n === 3 ? 3.2 : 2.1;
+        ctx.beginPath();
+        ctx.moveTo(from.x, from.y);
+        ctx.lineTo(to.x, to.y);
+        ctx.stroke();
+      });
+
+      projected
+        .slice()
+        .sort((a, b) => a.depth - b.depth)
+        .forEach((item) => {
+        const key = item.vertex.key;
+        const selected = key === state.selectedKey;
+        const hovered = key === state.hoveredKey;
+        const alpha = applyDepthFading ? 0.46 + item.depth * 0.54 : 1;
+          const radius = state.n === 3 ? 5.7 : 4.4;
+          ctx.globalAlpha = alpha;
+          ctx.fillStyle = selected ? "#246bfe" : hovered ? "#e8f0ff" : "#ffffff";
+          ctx.strokeStyle = selected ? "#174fd0" : "#162033";
+          ctx.lineWidth = selected ? 2.4 : 1.4;
+          ctx.beginPath();
+          ctx.arc(item.x, item.y, radius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          drawLabel(item, alpha, selected);
+        });
+      ctx.globalAlpha = 1;
+    }
+
+    function projectPoint(point, rect, divisor = state.n === 3 ? 5.2 : 7.25) {
+      const rotated = rotatePoint(point);
+      const scale = Math.min(rect.width, rect.height) * state.zoom / divisor;
+      return {
+        x: rect.width / 2 + state.panX + rotated.x * scale,
+        y: rect.height / 2 + state.panY - rotated.y * scale,
+        z: rotated.z,
+      };
+    }
+
+    function rgba(hex, alpha) {
+      const clean = hex.replace("#", "");
+      const value = parseInt(clean.length === 3
+        ? clean.split("").map((digit) => digit + digit).join("")
+        : clean, 16);
+      const r = (value >> 16) & 255;
+      const g = (value >> 8) & 255;
+      const b = value & 255;
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
+    function rootDiskBasis(rootKey, n) {
+      const [a, b] = rootKey.split("-").map(Number);
+      const normal = normalizePoint(rootProjection(a, b, n), 1);
+      const seed = Math.abs(normal.x) < 0.75 ? { x: 1, y: 0, z: 0 } : { x: 0, y: 1, z: 0 };
+      const u = normalizePoint(crossPoint(normal, seed), 1);
+      const v = normalizePoint(crossPoint(normal, u), 1);
+      return { normal, u, v };
+    }
+
+    function drawComplexScene() {
+      if (!state.complex) return;
+      resizeCanvas();
+      const rect = els.canvas.getBoundingClientRect();
+      ctx.clearRect(0, 0, rect.width, rect.height);
+      const complex = state.complex;
+      const projectedVertices = new Map(complex.vertices.map((vertex) => [vertex.key, {
+        vertex,
+        ...projectPoint(vertex.position, rect, state.n === 3 ? 5.0 : 6.8),
+      }]));
+      const projectedChambers = complex.chambers.map((chamber) => ({
+        chamber,
+        surfaceCenter: normalizePoint(chamber.center, complex.radius),
+        center: projectPoint(chamber.center, rect, state.n === 3 ? 5.0 : 6.8),
+        labelPoint: projectPoint(normalizePoint(chamber.center, complex.radius * 1.035), rect, state.n === 3 ? 5.0 : 6.8),
+        vertices: chamber.vertices.map((vertex) => projectedVertices.get(vertex.key)),
+      }));
+      const depths = projectedChambers.map((item) => item.center.z);
+      const minDepth = Math.min(...depths);
+      const maxDepth = Math.max(...depths);
+      const depthSpan = Math.max(maxDepth - minDepth, 0.001);
+      projectedChambers.forEach((item) => {
+        item.depth = (item.center.z - minDepth) / depthSpan;
+      });
+      state.projected = projectedChambers;
+      state.braidHitRegions = [];
+      if (!(state.mode === "braidArrangement" && state.n === 4)) {
+        els.canvas3d.classList.add("hidden");
+        clearWebglCanvas();
+      }
+
+      if (state.mode === "braidArrangement") {
+        drawBraidArrangement(complex, projectedVertices);
+      } else if (state.n === 4) {
+        const sphere = projectPoint({ x: 0, y: 0, z: 0 }, rect, 6.8);
+        const radius = Math.min(rect.width, rect.height) * state.zoom * complex.radius / 6.8;
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = "#eef4ff";
+        ctx.beginPath();
+        ctx.arc(sphere.x, sphere.y, radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 0.7;
+        ctx.strokeStyle = "#d8dee8";
+        ctx.lineWidth = 1.4;
+        ctx.stroke();
+      }
+
+      if (state.mode === "braidArrangement") {
+        // The braid arrangement supplies the geometric layer in this mode.
+      } else if (state.n === 4) {
+        ctx.globalAlpha = 0.88;
+        ctx.strokeStyle = chamberStroke;
+        ctx.lineWidth = 1.25;
+        drawS4ComplexArcs(complex);
+        drawSelectedInversionCircles(complex);
+      } else {
+        projectedChambers
+          .slice()
+          .sort((a, b) => a.depth - b.depth)
+          .forEach((item) => {
+            ctx.globalAlpha = 0.82;
+            ctx.strokeStyle = chamberStroke;
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.moveTo(item.vertices[0].x, item.vertices[0].y);
+            ctx.lineTo(item.vertices[1].x, item.vertices[1].y);
+            ctx.stroke();
+          });
+        drawS3ComplexVertices(projectedVertices);
+      }
+
+      if (isGeometryMode() && state.showCayley) drawCayleyOverlay(projectedChambers);
+
+      projectedChambers
+        .slice()
+        .sort((a, b) => a.depth - b.depth)
+        .forEach((item) => {
+          if (state.n === 4 && item.depth < 0.5) return;
+          drawChamberLabel(item);
+        });
+
+      ctx.globalAlpha = 1;
+    }
+
+    function drawBraidArrangement(complex, projectedVertices) {
+      if (state.n === 4) {
+        drawS4BraidDisks(complex);
+      } else {
+        drawS3BraidStrips(complex);
+      }
+    }
+
+    function drawS4BraidDisks(complex) {
+      const rect = els.canvas.getBoundingClientRect();
+      const disks = allRootKeys(4).map((rootKey) => {
+        const { normal, u, v } = rootDiskBasis(rootKey, 4);
+        const rotatedNormal = applyMatrix(state.rotation, normal);
+        const boundaryWorld = [];
+        const boundary = [];
+        for (let step = 0; step <= 96; step += 1) {
+          const angle = 2 * Math.PI * step / 96;
+          const point = {
+            x: complex.radius * (Math.cos(angle) * u.x + Math.sin(angle) * v.x),
+            y: complex.radius * (Math.cos(angle) * u.y + Math.sin(angle) * v.y),
+            z: complex.radius * (Math.cos(angle) * u.z + Math.sin(angle) * v.z),
+          };
+          boundaryWorld.push(point);
+          boundary.push(projectPoint(point, rect, 6.8));
+        }
+        return { rootKey, normal, rotatedNormal, u, v, boundary, boundaryWorld, depth: Math.abs(rotatedNormal.z), facing: rotatedNormal.z };
+      });
+
+      drawS4BraidDisksWebgl(complex, disks);
+
+      disks.forEach((disk) => {
+        state.braidHitRegions.push({
+          type: "disk",
+          rootKey: disk.rootKey,
+          points: disk.boundary,
+          normal: disk.rotatedNormal,
+          radius: complex.radius,
+          depth: disk.depth,
+          facing: disk.facing,
+        });
+      });
+
+    }
+
+    function hexToRgb01(hex) {
+      const clean = hex.replace("#", "");
+      const value = parseInt(clean.length === 3
+        ? clean.split("").map((digit) => digit + digit).join("")
+        : clean, 16);
+      return [
+        ((value >> 16) & 255) / 255,
+        ((value >> 8) & 255) / 255,
+        (value & 255) / 255,
+      ];
+    }
+
+    function drawS4BraidDisksWebgl(complex, disks) {
+      if (!gl) return;
+      const rect = els.canvas.getBoundingClientRect();
+      els.canvas3d.classList.remove("hidden");
+      resizeWebglCanvas();
+      const programInfo = ensureBraidGlProgram();
+      if (!programInfo) return;
+      const vertices = [];
+      const angularSteps = 192;
+      disks.forEach((disk) => {
+        const selected = state.selectedRootKeys.includes(disk.rootKey);
+        const color = hexToRgb01(inversionCircleColors[disk.rootKey] || edgeColors[0]);
+        const alpha = selected ? 1 : 0.68;
+        for (let step = 0; step < angularSteps; step += 1) {
+          const angles = [2 * Math.PI * step / angularSteps, 2 * Math.PI * (step + 1) / angularSteps];
+          const points = [
+            { x: 0, y: 0, z: 0 },
+            {
+              x: complex.radius * (Math.cos(angles[0]) * disk.u.x + Math.sin(angles[0]) * disk.v.x),
+              y: complex.radius * (Math.cos(angles[0]) * disk.u.y + Math.sin(angles[0]) * disk.v.y),
+              z: complex.radius * (Math.cos(angles[0]) * disk.u.z + Math.sin(angles[0]) * disk.v.z),
+            },
+            {
+              x: complex.radius * (Math.cos(angles[1]) * disk.u.x + Math.sin(angles[1]) * disk.v.x),
+              y: complex.radius * (Math.cos(angles[1]) * disk.u.y + Math.sin(angles[1]) * disk.v.y),
+              z: complex.radius * (Math.cos(angles[1]) * disk.u.z + Math.sin(angles[1]) * disk.v.z),
+            },
+          ];
+          points.forEach((point) => {
+            vertices.push(point.x, point.y, point.z, color[0], color[1], color[2], alpha);
+          });
+        }
+      });
+      const data = new Float32Array(vertices);
+      gl.useProgram(programInfo.program);
+      gl.bindBuffer(gl.ARRAY_BUFFER, braidGlBuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
+      const stride = 7 * Float32Array.BYTES_PER_ELEMENT;
+      gl.enableVertexAttribArray(programInfo.position);
+      gl.vertexAttribPointer(programInfo.position, 3, gl.FLOAT, false, stride, 0);
+      gl.enableVertexAttribArray(programInfo.color);
+      gl.vertexAttribPointer(programInfo.color, 4, gl.FLOAT, false, stride, 3 * Float32Array.BYTES_PER_ELEMENT);
+      gl.uniformMatrix3fv(programInfo.rotation, false, new Float32Array([
+        state.rotation[0][0], state.rotation[1][0], state.rotation[2][0],
+        state.rotation[0][1], state.rotation[1][1], state.rotation[2][1],
+        state.rotation[0][2], state.rotation[1][2], state.rotation[2][2],
+      ]));
+      const scale = Math.min(rect.width, rect.height) * state.zoom / 6.8;
+      gl.uniform2f(programInfo.scale, scale / (rect.width / 2), scale / (rect.height / 2));
+      gl.uniform2f(programInfo.pan, state.panX / (rect.width / 2), -state.panY / (rect.height / 2));
+      gl.uniform1f(programInfo.radius, complex.radius);
+      gl.enable(gl.DEPTH_TEST);
+      gl.depthFunc(gl.LEQUAL);
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      gl.clearColor(0, 0, 0, 0);
+      gl.clearDepth(1);
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+      gl.drawArrays(gl.TRIANGLES, 0, data.length / 7);
+      drawS4BraidLinesWebgl(complex, disks, programInfo);
+    }
+
+    function drawS4BraidLinesWebgl(complex, disks, programInfo) {
+      const vertices = [];
+      function pushVertex(point, color) {
+        vertices.push(point.x, point.y, point.z, color[0], color[1], color[2], color[3]);
+      }
+      function pushBoundary(disk, color) {
+        for (let i = 1; i < disk.boundaryWorld.length; i += 1) {
+          pushVertex(disk.boundaryWorld[i - 1], color);
+          pushVertex(disk.boundaryWorld[i], color);
+        }
+      }
+      disks.forEach((disk) => {
+        const selected = state.selectedRootKeys.includes(disk.rootKey);
+        pushBoundary(disk, selected ? [0, 0, 0, 0.95] : [0.08, 0.13, 0.2, 0.62]);
+        if (selected) pushBoundary(disk, [1, 1, 1, 0.72]);
+      });
+
+      const seen = new Set();
+      for (let i = 0; i < disks.length; i += 1) {
+        for (let j = i + 1; j < disks.length; j += 1) {
+          const direction = crossPoint(disks[i].normal, disks[j].normal);
+          const length = Math.hypot(direction.x, direction.y, direction.z);
+          if (length < 1e-6) continue;
+          const unit = normalizePoint(direction, 1);
+          const sign = Math.abs(unit.x) > 1e-4 ? Math.sign(unit.x)
+            : Math.abs(unit.y) > 1e-4 ? Math.sign(unit.y)
+              : Math.sign(unit.z || 1);
+          const canonical = { x: unit.x * sign, y: unit.y * sign, z: unit.z * sign };
+          const key = [canonical.x.toFixed(4), canonical.y.toFixed(4), canonical.z.toFixed(4)].join("|");
+          if (seen.has(key)) continue;
+          seen.add(key);
+          const color = [0.08, 0.13, 0.2, 0.82];
+          pushVertex({ x: -complex.radius * unit.x, y: -complex.radius * unit.y, z: -complex.radius * unit.z }, color);
+          pushVertex({ x: complex.radius * unit.x, y: complex.radius * unit.y, z: complex.radius * unit.z }, color);
+        }
+      }
+
+      if (!vertices.length) return;
+      const data = new Float32Array(vertices);
+      gl.useProgram(programInfo.program);
+      gl.bindBuffer(gl.ARRAY_BUFFER, braidGlBuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
+      const stride = 7 * Float32Array.BYTES_PER_ELEMENT;
+      gl.enableVertexAttribArray(programInfo.position);
+      gl.vertexAttribPointer(programInfo.position, 3, gl.FLOAT, false, stride, 0);
+      gl.enableVertexAttribArray(programInfo.color);
+      gl.vertexAttribPointer(programInfo.color, 4, gl.FLOAT, false, stride, 3 * Float32Array.BYTES_PER_ELEMENT);
+      gl.depthFunc(gl.LEQUAL);
+      gl.depthMask(false);
+      gl.lineWidth(1.5);
+      gl.drawArrays(gl.LINES, 0, data.length / 7);
+      gl.depthMask(true);
+    }
+
+    function drawS3BraidStrips(complex) {
+      const rect = els.canvas.getBoundingClientRect();
+      allRootKeys(3).forEach((rootKey) => {
+        const [a, b] = rootKey.split("-").map(Number);
+        const normal = s3ComplexPoint(rootProjection(a, b, 3));
+        const normalUnit = normalizePoint(normal, 1);
+        const direction = { x: -normalUnit.y, y: normalUnit.x, z: 0 };
+        const first = projectPoint({ x: direction.x * complex.radius, y: direction.y * complex.radius, z: 0 }, rect, 5.0);
+        const second = projectPoint({ x: -direction.x * complex.radius, y: -direction.y * complex.radius, z: 0 }, rect, 5.0);
+        const selected = state.selectedRootKeys.includes(rootKey);
+        const color = inversionCircleColors[rootKey] || edgeColors[0];
+        const lineWidth = selected ? 9 : 7;
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = rgba(color, selected ? 0.9 : 0.38);
+        ctx.lineWidth = lineWidth;
+        ctx.lineCap = "butt";
+        ctx.beginPath();
+        ctx.moveTo(first.x, first.y);
+        ctx.lineTo(second.x, second.y);
+        ctx.stroke();
+        state.braidHitRegions.push({ rootKey, first, second, lineWidth: selected ? 42 : 32 });
+      });
+      ctx.lineCap = "round";
+      ctx.globalAlpha = 1;
+    }
+
+    function s3VertexRootKey(vertexKey) {
+      const values = vertexKey.split("").map(Number);
+      const contains = (value) => values.includes(value);
+      return allRootKeys(3).find((rootKey) => {
+        const [a, b] = rootKey.split("-").map(Number);
+        return contains(a) === contains(b);
+      }) || null;
+    }
+
+    function drawS3ComplexVertices(projectedVertices) {
+      projectedVertices.forEach((item) => {
+        const rootKey = s3VertexRootKey(item.vertex.key);
+        const selected = rootKey && state.selectedRootKeys.includes(rootKey);
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = selected ? inversionCircleColors[rootKey] : "#ffffff";
+        ctx.strokeStyle = selected ? inversionCircleColors[rootKey] : "#162033";
+        ctx.lineWidth = selected ? 3 : 1.4;
+        ctx.beginPath();
+        ctx.arc(item.x, item.y, selected ? 7.2 : 5.2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      });
+    }
+
+    function drawS4ComplexArcs(complex) {
+      const seen = new Set();
+      complex.chambers.forEach((chamber) => {
+        [[0, 1], [1, 2], [2, 0]].forEach(([i, j]) => {
+          const first = chamber.vertices[i];
+          const second = chamber.vertices[j];
+          const key = [first.key, second.key].sort().join("|");
+          if (seen.has(key)) return;
+          seen.add(key);
+          drawSphericalArc(first.position, second.position);
+        });
+      });
+    }
+
+    function drawSelectedInversionCircles(complex) {
+      if (!state.selectedRootKeys.length) return;
+      state.selectedRootKeys.forEach((rootKey) => {
+        const [a, b] = rootKey.split("-").map(Number);
+        const normal = normalizePoint(rootProjection(a, b, complex.n), 1);
+        const seed = Math.abs(normal.x) < 0.75 ? { x: 1, y: 0, z: 0 } : { x: 0, y: 1, z: 0 };
+        const u = normalizePoint(crossPoint(normal, seed), 1);
+        const v = normalizePoint(crossPoint(normal, u), 1);
+        const points = [];
+        for (let step = 0; step <= 144; step += 1) {
+          const angle = 2 * Math.PI * step / 144;
+          points.push({
+            x: complex.radius * (Math.cos(angle) * u.x + Math.sin(angle) * v.x),
+            y: complex.radius * (Math.cos(angle) * u.y + Math.sin(angle) * v.y),
+            z: complex.radius * (Math.cos(angle) * u.z + Math.sin(angle) * v.z),
+          });
+        }
+        ctx.globalAlpha = 0.9;
+        ctx.strokeStyle = inversionCircleColors[rootKey] || "#246bfe";
+        ctx.lineWidth = 3.1;
+        drawVisibleSpherePolyline(points);
+      });
+    }
+
+    function horizonPoint(from, to) {
+      const denom = from.z - to.z;
+      const t = Math.max(0, Math.min(1, denom === 0 ? 0 : from.z / denom));
+      return {
+        x: from.x + (to.x - from.x) * t,
+        y: from.y + (to.y - from.y) * t,
+        z: 0,
+      };
+    }
+
+    function drawVisibleSpherePolyline(points) {
+      const rect = els.canvas.getBoundingClientRect();
+      const projected = points.map((point) => projectPoint(point, rect, 6.8));
+      let drawing = false;
+      let previous = null;
+      projected.forEach((point) => {
+        const visible = point.z >= 0;
+        if (!drawing) {
+          if (!visible) {
+            previous = point;
+            return;
+          }
+          ctx.beginPath();
+          if (previous && previous.z < 0) {
+            const horizon = horizonPoint(previous, point);
+            ctx.moveTo(horizon.x, horizon.y);
+          } else {
+            ctx.moveTo(point.x, point.y);
+          }
+          drawing = true;
+        }
+        if (visible) {
+          ctx.lineTo(point.x, point.y);
+        } else if (previous) {
+          const horizon = horizonPoint(previous, point);
+          ctx.lineTo(horizon.x, horizon.y);
+          ctx.stroke();
+          drawing = false;
+        }
+        previous = point;
+      });
+      if (drawing) ctx.stroke();
+    }
+
+    function drawSphericalArc(a, b) {
+      const rect = els.canvas.getBoundingClientRect();
+      const points = sphericalArcPoints(a, b, 72).map((point) => projectPoint(point, rect, 6.8));
+      let drawing = false;
+      let previous = null;
+      points.forEach((point) => {
+        const visible = point.z >= 0;
+        if (!drawing) {
+          if (!visible) {
+            previous = point;
+            return;
+          }
+          ctx.beginPath();
+          if (previous && previous.z < 0) {
+            const horizon = horizonPoint(previous, point);
+            ctx.moveTo(horizon.x, horizon.y);
+          } else {
+            ctx.moveTo(point.x, point.y);
+          }
+          drawing = true;
+        }
+        if (visible) {
+          ctx.lineTo(point.x, point.y);
+        } else if (previous) {
+          const horizon = horizonPoint(previous, point);
+          ctx.lineTo(horizon.x, horizon.y);
+          ctx.stroke();
+          drawing = false;
+        }
+        previous = point;
+      });
+      if (drawing) ctx.stroke();
+    }
+
+    function drawCayleyOverlay(projectedChambers) {
+      const byKey = new Map(projectedChambers.map((item) => [item.chamber.key, item]));
+      const selectedChamber = state.selectedKey ? state.complex.chamberByKey.get(state.selectedKey) : null;
+      const selectedInversions = new Set(selectedChamber ? sortedRootKeys(selectedChamber.inversions) : []);
+      function edgeTopBelowSelected(edge) {
+        if (!selectedChamber) return false;
+        const top = edge.from.rank > edge.to.rank ? edge.from : edge.to;
+        return sortedRootKeys(top.inversions).every((rootKey) => selectedInversions.has(rootKey));
+      }
+      state.complex.cayleyEdges.forEach((edge) => {
+        const from = byKey.get(edge.from.key);
+        const to = byKey.get(edge.to.key);
+        const highlighted = edgeTopBelowSelected(edge);
+        if (state.n === 4) {
+          const depth = Math.min(from.labelPoint.z, to.labelPoint.z);
+          ctx.globalAlpha = highlighted ? 0.98 : 0.42 + Math.max(depth, 0) / state.complex.radius * 0.32;
+          ctx.strokeStyle = highlighted ? "#05070a" : coverRelationColor;
+          ctx.lineWidth = highlighted ? 3.2 : 2;
+          drawSphericalArc(from.surfaceCenter, to.surfaceCenter);
+          return;
+        }
+        const depth = Math.min(from.depth, to.depth);
+        ctx.globalAlpha = highlighted ? 1 : 0.86;
+        ctx.strokeStyle = highlighted ? "#05070a" : coverRelationColor;
+        ctx.lineWidth = highlighted ? 3.1 : 2;
+        ctx.beginPath();
+        ctx.moveTo(from.center.x, from.center.y);
+        ctx.lineTo(to.center.x, to.center.y);
+        ctx.stroke();
+      });
+      projectedChambers.forEach((item) => {
+        const anchor = state.n === 4 ? item.labelPoint : item.center;
+        if (state.n === 4 && anchor.z < 0) return;
+        const visiblySelected = item.chamber.key === state.selectedKey;
+        ctx.globalAlpha = state.n === 4 ? 0.78 : 1;
+        ctx.fillStyle = visiblySelected ? "#246bfe" : "#ffffff";
+        ctx.strokeStyle = "#162033";
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.arc(anchor.x, anchor.y, state.n === 3 ? 4.5 : 3.6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      });
+    }
+
+    function drawChamberLabel(item) {
+      const identityLabel = item.chamber.key === permKey(identity(state.n));
+      const selected = item.chamber.key === state.selectedKey;
+      const alpha = state.n === 4 ? 0.75 + item.depth * 0.25 : 1;
+      const width = state.n === 3 ? 56 : 52;
+      const height = state.n === 3 ? 27 : 24;
+      const anchor = item.labelPoint || item.center;
+      const x = anchor.x - width / 2;
+      const y = anchor.y - height / 2;
+      item.labelBox = { x, y, width, height };
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = selected ? "#246bfe" : "rgba(255, 255, 255, 0.92)";
+      ctx.strokeStyle = selected ? "#174fd0" : identityLabel ? "#162033" : "#d8dee8";
+      ctx.lineWidth = selected ? 2.2 : identityLabel ? 2.5 : 1;
+      roundRect(ctx, x, y, width, height, 8);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = selected ? "#ffffff" : "#162033";
+      ctx.font = `800 ${state.n === 3 ? 14 : 12}px Inter, Segoe UI, sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(item.chamber.key, x + width / 2, y + height / 2 + 1);
+    }
+
+    function labelSize() {
+      return {
+        width: state.n === 3 ? 66 : 58,
+        height: state.n === 3 ? 30 : 26,
+      };
+    }
+
+    function drawLabel(item, alpha, selected) {
+      const { width, height } = labelSize();
+      const x = item.x - width / 2;
+      const y = item.y - height - (state.n === 3 ? 13 : 10);
+      item.labelBox = { x, y, width, height };
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = selected ? "#246bfe" : "rgba(255, 255, 255, 0.96)";
+      ctx.strokeStyle = selected ? "#174fd0" : "#d8dee8";
+      ctx.lineWidth = selected ? 2 : 1.3;
+      roundRect(ctx, x, y, width, height, 8);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = selected ? "#ffffff" : "#162033";
+      ctx.font = `800 ${state.n === 3 ? 16 : 14}px Inter, Segoe UI, sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(item.vertex.key, x + width / 2, y + height / 2 + 1);
+    }
+
+    function nearestVertex(event) {
+      const rect = els.canvas.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      if (isGeometryMode()) {
+        let bestChamber = null;
+        let bestDepth = -Infinity;
+        state.projected.forEach((item) => {
+          const box = item.labelBox;
+          const insideLabel = box && x >= box.x && x <= box.x + box.width && y >= box.y && y <= box.y + box.height;
+          if (insideLabel && item.depth >= bestDepth) {
+            bestChamber = item.chamber.key;
+            bestDepth = item.depth;
+          }
+        });
+        return bestChamber;
+      }
+      let best = null;
+      let bestDistance = Infinity;
+      state.projected.forEach((item) => {
+        const box = item.labelBox;
+        const insideLabel = box && x >= box.x && x <= box.x + box.width && y >= box.y && y <= box.y + box.height;
+        const distance = Math.hypot(item.x - x, item.y - y);
+        const score = insideLabel ? 0 : distance;
+        if (score < bestDistance && (insideLabel || distance < 18)) {
+          best = item;
+          bestDistance = score;
+        }
+      });
+      return best?.vertex?.key || null;
+    }
+
+    function pointInPolygon(x, y, points) {
+      let inside = false;
+      for (let i = 0, j = points.length - 1; i < points.length; j = i, i += 1) {
+        const xi = points[i].x;
+        const yi = points[i].y;
+        const xj = points[j].x;
+        const yj = points[j].y;
+        const intersects = ((yi > y) !== (yj > y)) &&
+          x < (xj - xi) * (y - yi) / ((yj - yi) || 1e-9) + xi;
+        if (intersects) inside = !inside;
+      }
+      return inside;
+    }
+
+    function distanceToSegment(x, y, first, second) {
+      const dx = second.x - first.x;
+      const dy = second.y - first.y;
+      const length2 = dx * dx + dy * dy || 1;
+      const t = Math.max(0, Math.min(1, ((x - first.x) * dx + (y - first.y) * dy) / length2));
+      const px = first.x + t * dx;
+      const py = first.y + t * dy;
+      return Math.hypot(x - px, y - py);
+    }
+
+    function nearestBraidRoot(event) {
+      if (state.mode !== "braidArrangement") return null;
+      const rect = els.canvas.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      if (state.n === 4) {
+        const scale = Math.min(rect.width, rect.height) * state.zoom / 6.8;
+        const rotatedX = (x - rect.width / 2 - state.panX) / scale;
+        const rotatedY = (rect.height / 2 + state.panY - y) / scale;
+        let bestRoot = null;
+        let bestDepth = -Infinity;
+        state.braidHitRegions.forEach((region) => {
+          if (region.type !== "disk" || !region.normal || Math.abs(region.normal.z) < 1e-5) return;
+          const z = -(region.normal.x * rotatedX + region.normal.y * rotatedY) / region.normal.z;
+          const radius2 = rotatedX * rotatedX + rotatedY * rotatedY + z * z;
+          if (radius2 <= region.radius * region.radius + 1e-5 && z > bestDepth) {
+            bestDepth = z;
+            bestRoot = region.rootKey;
+          }
+        });
+        return bestRoot;
+      }
+      const regions = [...state.braidHitRegions].reverse();
+      for (const region of regions) {
+        if (region.points && pointInPolygon(x, y, region.points)) return region.rootKey;
+        if (region.first && distanceToSegment(x, y, region.first, region.second) <= region.lineWidth / 2) {
+          return region.rootKey;
+        }
+      }
+      return null;
+    }
+
+    function updateHover(event) {
+      const key = nearestVertex(event);
+      if (state.hoveredKey !== key) {
+        state.hoveredKey = key;
+        drawScene();
+      }
+    }
+
+    function pointerDistance() {
+      const points = Array.from(state.activePointers.values());
+      if (points.length < 2) return 0;
+      return Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
+    }
+
+    function trackPointer(event) {
+      state.activePointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    }
+
+    function untrackPointer(event) {
+      state.activePointers.delete(event.pointerId);
+    }
+
+    els.s3.addEventListener("click", () => setGroup(3));
+    els.s4.addEventListener("click", () => setGroup(4));
+    els.modeWeak.addEventListener("click", () => {
+      if (state.mode === "weakOrder") return;
+      state.mode = "weakOrder";
+      rebuildScene();
+    });
+    els.modeComplex.addEventListener("click", () => {
+      if (state.mode === "coxeterComplex") return;
+      const wasGeometry = isGeometryMode();
+      state.mode = "coxeterComplex";
+      rebuildScene(!wasGeometry);
+    });
+    els.modeBraid.addEventListener("click", () => {
+      if (state.mode === "braidArrangement") return;
+      const wasGeometry = isGeometryMode();
+      state.mode = "braidArrangement";
+      rebuildScene(!wasGeometry);
+    });
+    els.showCayley.addEventListener("change", () => {
+      state.showCayley = els.showCayley.checked;
+      drawScene();
+    });
+    els.transpositionPanel.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-root]");
+      if (!button || !isGeometryMode()) return;
+      toggleSelectedRoot(button.dataset.root);
+    });
+    els.coverList.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-adjacent-key]");
+      if (!button) return;
+      const key = button.dataset.adjacentKey;
+      if (isGeometryMode()) selectChamber(key);
+      else selectWeakPermutation(key);
+      renderUi();
+      drawScene();
+    });
+    els.embeddingRanked.addEventListener("click", () => {
+      if (state.embedding === "ranked") return;
+      state.embedding = "ranked";
+      if (state.n === 4) rebuildScene();
+      else renderUi();
+    });
+    els.embeddingRegular.addEventListener("click", () => {
+      if (state.embedding === "regular") return;
+      state.embedding = "regular";
+      if (state.n === 4) rebuildScene();
+      else renderUi();
+    });
+    els.reset.addEventListener("click", resetView);
+    els.canvas.addEventListener("pointerdown", (event) => {
+      trackPointer(event);
+      state.dragging = true;
+      state.moved = false;
+      state.lastPointer = { x: event.clientX, y: event.clientY };
+      state.lastTrackball = isRankedView() || isPlanarComplexView() ? null : trackballVector(event.clientX, event.clientY);
+      if (state.activePointers.size >= 2) {
+        state.dragging = false;
+        state.pinching = true;
+        state.moved = true;
+        state.lastTrackball = null;
+        state.pinchStartDistance = pointerDistance();
+        state.pinchStartZoom = state.zoom;
+      }
+      if (state.dragging) els.canvas.setPointerCapture(event.pointerId);
+    });
+    els.canvas.addEventListener("pointermove", (event) => {
+      if (!state.activePointers.has(event.pointerId) && !state.dragging) {
+        updateHover(event);
+        return;
+      }
+      trackPointer(event);
+      if (state.pinching && state.activePointers.size >= 2) {
+        const distance = pointerDistance();
+        if (state.pinchStartDistance > 0) {
+          if (!isRankedView()) state.depthFading = true;
+          state.zoom = Math.max(0.56, Math.min(2.1, state.pinchStartZoom * distance / state.pinchStartDistance));
+          drawScene();
+        }
+        return;
+      }
+      if (state.dragging && state.lastPointer) {
+        const dx = event.clientX - state.lastPointer.x;
+        const dy = event.clientY - state.lastPointer.y;
+        if (Math.abs(dx) + Math.abs(dy) > 2) state.moved = true;
+        if (isRankedView() || isPlanarComplexView()) {
+          state.panX += dx;
+          state.panY += dy;
+        } else {
+          applyTrackballDrag(event.clientX, event.clientY);
+          state.depthFading = true;
+        }
+        state.lastPointer = { x: event.clientX, y: event.clientY };
+        drawScene();
+      } else {
+        updateHover(event);
+      }
+    });
+    els.canvas.addEventListener("pointerup", (event) => {
+      const wasPinching = state.pinching;
+      untrackPointer(event);
+      if (state.activePointers.size < 2) state.pinching = false;
+      if (state.activePointers.size === 0) state.lastTrackball = null;
+      if (!state.moved && !wasPinching) {
+        const key = nearestVertex(event);
+        if (key) {
+          if (isGeometryMode()) selectChamber(key);
+          else selectWeakPermutation(key);
+          renderUi();
+        } else if (state.mode === "braidArrangement") {
+          const rootKey = nearestBraidRoot(event);
+          if (rootKey) toggleSelectedRoot(rootKey);
+        }
+      }
+      state.dragging = false;
+      state.lastPointer = null;
+      drawScene();
+    });
+    els.canvas.addEventListener("pointercancel", (event) => {
+      untrackPointer(event);
+      state.dragging = false;
+      state.pinching = false;
+      state.lastPointer = null;
+      state.lastTrackball = null;
+      drawScene();
+    });
+    els.canvas.addEventListener("pointerleave", () => {
+      state.hoveredKey = null;
+      drawScene();
+    });
+    els.canvas.addEventListener("wheel", (event) => {
+      event.preventDefault();
+      const factor = event.deltaY < 0 ? 1.08 : 0.92;
+      if (!isRankedView()) state.depthFading = true;
+      state.zoom = Math.max(0.56, Math.min(2.1, state.zoom * factor));
+      drawScene();
+    }, { passive: false });
+    window.addEventListener("resize", drawScene);
+
+    try {
+      rebuildScene();
+    } catch (error) {
+      console.error(error);
+      els.status.className = "error";
+      els.status.textContent = "The 3D scene could not be initialized.";
+    }
+  </script>
+
+
+</body><div id="codex-browser-sidebar-comments-root" style="position: fixed; inset: 0px; pointer-events: none; z-index: 2147483647;"></div></html>
