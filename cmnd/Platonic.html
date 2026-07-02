@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Platonic Coxeter Visualizer</title>
+  <title>Platonic Solids and Coxeter Groups</title>
   <style>
     :root {
       --ink: #162033;
@@ -204,8 +204,8 @@
   <main class="app-shell">
     <header class="topbar">
       <div>
-        <p class="eyebrow">Rank 3 reflection groups</p>
-        <h1>Platonic Coxeter Visualizer</h1>
+        <p class="eyebrow">Bruhat order and applications</p>
+        <h1>Platonic Solids and Coxeter Groups</h1>
       </div>
       <div class="top-controls">
         <div class="segmented" role="group" aria-label="Choose group">
@@ -1285,8 +1285,8 @@
       if (!button) return;
       state.mode = button.dataset.mode;
       state.solid = isSolidMode(state.mode) ? polyhedronData(state.mode) : null;
-      resetView();
       renderUi();
+      drawScene();
     });
     els.showCayley.addEventListener("change", () => {
       state.showCayley = els.showCayley.checked;
