@@ -310,6 +310,10 @@
       braid: "Braid arrangement",
       permutahedron: "Permutahedron",
     };
+    function modeLabel(mode, group = state.group) {
+      if (mode === "braid" && group !== "S4") return "Coxeter arrangement";
+      return modeLabels[mode];
+    }
     const diskColors = ["#246bfe", "#7c3aed", "#dc2626", "#15803d", "#0891b2", "#a16207", "#be185d", "#0f766e", "#4338ca", "#b45309", "#64748b", "#16a34a", "#ef4444", "#0284c7", "#9333ea"];
     const chamberStroke = "rgba(22, 32, 51, 0.38)";
     const graphColor = "#475569";
@@ -325,6 +329,12 @@
     function sub(a, b) { return { x: a.x - b.x, y: a.y - b.y, z: a.z - b.z }; }
     function scale(p, s) { return { x: p.x * s, y: p.y * s, z: p.z * s }; }
     function avg(points) { return scale(points.reduce(add, { x: 0, y: 0, z: 0 }), 1 / Math.max(points.length, 1)); }
+    function closestPointOnSegment(point, first, second) {
+      const direction = sub(second, first);
+      const length2 = dot(direction, direction) || 1;
+      const t = Math.max(0, Math.min(1, dot(sub(point, first), direction) / length2));
+      return add(first, scale(direction, t));
+    }
     function norm(p, r = 1) {
       const length = Math.hypot(p.x, p.y, p.z) || 1;
       return { x: r * p.x / length, y: r * p.y / length, z: r * p.z / length };
@@ -650,7 +660,12 @@
         incidentEdges.forEach((key) => candidates.push(`${chamber.vertexIndex}|${key}|${chamber.faceIndex}`));
         candidates.forEach((key) => {
           const to = chamberByFlag.get(key);
-          if (to && chamber.id < to.id) cayleyEdges.push({ from: chamber.id, to: to.id });
+          if (to && chamber.id < to.id) {
+            const commonPoints = chamber.points.filter((point) =>
+              to.points.some((other) => Math.hypot(point.x - other.x, point.y - other.y, point.z - other.z) < 1e-6)
+            );
+            cayleyEdges.push({ from: chamber.id, to: to.id, wall: commonPoints });
+          }
         });
       });
       return { ...poly, edges, chambers, cayleyEdges };
@@ -777,15 +792,21 @@
     function isSolidMode(mode) {
       return ["tetrahedron", "cube", "octahedron", "dodecahedron", "icosahedron"].includes(mode);
     }
+    function equivalentModeForGroup(mode, group) {
+      const modes = groupConfigs[group].modes;
+      if (modes.includes(mode)) return mode;
+      if (isSolidMode(mode)) return modes[0];
+      return modes.includes(mode) ? mode : modes[0];
+    }
     function renderUi() {
       Object.entries(els.groupButtons).forEach(([key, button]) => button.classList.toggle("active", key === state.group));
       const config = groupConfigs[state.group];
       if (!config.modes.includes(state.mode)) state.mode = config.modes[0];
       els.modeTabs.innerHTML = config.modes.map((mode) =>
-        `<button type="button" class="${mode === state.mode ? "active" : ""}" data-mode="${mode}">${modeLabels[mode]}</button>`
+        `<button type="button" class="${mode === state.mode ? "active" : ""}" data-mode="${mode}">${modeLabel(mode, state.group)}</button>`
       ).join("");
       els.showCayley.checked = state.showCayley;
-      els.title.textContent = `${modeLabels[state.mode]} for ${config.text}`;
+      els.title.textContent = `${modeLabel(state.mode, state.group)} for ${config.text}`;
       els.subtitle.textContent = "Drag to rotate. Scroll or pinch to zoom.";
       const chambers = isSolidMode(state.mode) ? state.solid.chambers.length : state.data.chambers.length;
       els.metricChambers.textContent = String(chambers);
@@ -954,6 +975,10 @@
       if (state.showCayley) drawCayleyForCoxeter(rect, false);
     }
     function drawPermutahedronMode(rect) {
+      if (state.group !== "S4") {
+        drawCayleyPermutahedronLikeArrangement(rect);
+        return;
+      }
       const points = state.data.orbit.map((item) => ({ ...item, projected: projectPoint(item.point, rect, 6.2) }));
       const depths = points.map((item) => item.projected.z);
       const minDepth = Math.min(...depths);
@@ -983,6 +1008,39 @@
         ctx.fill();
         ctx.stroke();
       });
+    }
+    function drawCayleyPermutahedronLikeArrangement(rect) {
+      const centers = state.data.chambers.map((chamber) => ({ ...chamber, point: chamber.center, projected: projectPoint(chamber.center, rect) }));
+      const depths = centers.map((item) => item.projected.z);
+      const minDepth = Math.min(...depths);
+      const maxDepth = Math.max(...depths);
+      const span = Math.max(maxDepth - minDepth, 0.001);
+      state.data.cayleyEdges.forEach((edge) => {
+        const a = centers[edge.from].projected;
+        const b = centers[edge.to].projected;
+        const depth = ((a.z + b.z) / 2 - minDepth) / span;
+        ctx.globalAlpha = 0.26 + depth * 0.58;
+        ctx.strokeStyle = graphColor;
+        ctx.lineWidth = 1.45;
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+      });
+      centers
+        .slice()
+        .sort((a, b) => a.projected.z - b.projected.z)
+        .forEach((item) => {
+          const depth = (item.projected.z - minDepth) / span;
+          ctx.globalAlpha = 0.4 + depth * 0.6;
+          ctx.fillStyle = "#fff";
+          ctx.strokeStyle = "#162033";
+          ctx.lineWidth = 1.05;
+          ctx.beginPath();
+          ctx.arc(item.projected.x, item.projected.y, 3.4, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+        });
     }
     function drawCayleyForCoxeter(rect, sphere) {
       const centers = state.data.chambers.map((chamber) => ({
@@ -1027,14 +1085,26 @@
         const aVisible = visibleFaces.has(a.faceIndex);
         const bVisible = visibleFaces.has(b.faceIndex);
         if (!aVisible && !bVisible) return;
+        const wallPoint = edge.wall?.length
+          ? edge.wall.length === 1
+            ? edge.wall[0]
+            : closestPointOnSegment(a.center, edge.wall[0], edge.wall[1])
+          : avg([a.center, b.center]);
         const p = projectPoint(a.center, rect);
+        const middle = projectPoint(wallPoint, rect);
         const q = projectPoint(b.center, rect);
         ctx.globalAlpha = 0.74;
         ctx.strokeStyle = graphColor;
         ctx.lineWidth = 1.45;
         ctx.beginPath();
-        ctx.moveTo(p.x, p.y);
-        ctx.lineTo(q.x, q.y);
+        if (aVisible) {
+          ctx.moveTo(p.x, p.y);
+          ctx.lineTo(middle.x, middle.y);
+        }
+        if (bVisible) {
+          ctx.moveTo(q.x, q.y);
+          ctx.lineTo(middle.x, middle.y);
+        }
         ctx.stroke();
       });
       state.solid.chambers.forEach((chamber) => {
@@ -1173,23 +1243,6 @@
           push(disk.boundary[i], [0.08, 0.13, 0.2, 0.62]);
         }
       });
-      const seen = new Set();
-      for (let i = 0; i < disks.length; i += 1) {
-        for (let j = i + 1; j < disks.length; j += 1) {
-          const direction = cross(disks[i].normal, disks[j].normal);
-          if (Math.hypot(direction.x, direction.y, direction.z) < 1e-6) continue;
-          const unit = norm(direction, 1);
-          const sign = Math.abs(unit.x) > 1e-4 ? Math.sign(unit.x)
-            : Math.abs(unit.y) > 1e-4 ? Math.sign(unit.y)
-              : Math.sign(unit.z || 1);
-          const canonical = scale(unit, sign);
-          const key = [canonical.x, canonical.y, canonical.z].map((value) => value.toFixed(4)).join("|");
-          if (seen.has(key)) continue;
-          seen.add(key);
-          push(scale(unit, -radius), [0.08, 0.13, 0.2, 0.82]);
-          push(scale(unit, radius), [0.08, 0.13, 0.2, 0.82]);
-        }
-      }
       if (!vertices.length) return;
       const data = new Float32Array(vertices);
       gl.useProgram(info.program);
@@ -1221,8 +1274,9 @@
     Object.entries(els.groupButtons).forEach(([group, button]) => {
       button.addEventListener("click", () => {
         if (state.group === group) return;
+        const previousMode = state.mode;
         state.group = group;
-        state.mode = groupConfigs[group].modes[0];
+        state.mode = equivalentModeForGroup(previousMode, group);
         rebuild(true);
       });
     });
