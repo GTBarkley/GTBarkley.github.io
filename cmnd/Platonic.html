@@ -367,6 +367,13 @@
       const sign = Math.abs(q.x) > 1e-5 ? Math.sign(q.x) : Math.abs(q.y) > 1e-5 ? Math.sign(q.y) : Math.sign(q.z || 1);
       return [q.x * sign, q.y * sign, q.z * sign].map((value) => value.toFixed(5)).join(",");
     }
+    function hasRootLine(roots, candidate) {
+      const q = norm(candidate, 1);
+      return roots.some((root) => Math.abs(dot(norm(root, 1), q)) > 1 - 1e-6);
+    }
+    function pushRootLine(roots, candidate) {
+      if (!hasRootLine(roots, candidate)) roots.push(norm(candidate, 1));
+    }
     function permutations(n) {
       const result = [];
       const used = Array(n + 1).fill(false);
@@ -524,20 +531,128 @@
         });
       });
       const reflectionRoots = [];
-      const rootSeen = new Set();
       elements.forEach((element) => {
         roots.forEach((root) => {
           const image = matVec(element.matrix, root);
-          const key = pointKey(image);
-          if (!rootSeen.has(key)) {
-            rootSeen.add(key);
-            reflectionRoots.push(norm(image, 1));
-          }
+          pushRootLine(reflectionRoots, image);
         });
       });
       const seed = norm(add(add(scale(roots[0], 0.73), scale(roots[1], 1.31)), scale(roots[2], 1.97)), 2.35);
       const orbit = elements.map((element, id) => ({ id, point: matVec(element.matrix, seed) }));
       return { group, roots, generators, elements, chambers, cayleyEdges, reflectionRoots, orbit, order: elements.length };
+    }
+    function component(point, index) {
+      return index === 0 ? point.x : index === 1 ? point.y : point.z;
+    }
+    function frameFromPair(first, second) {
+      const e1 = norm(first, 1);
+      const secondFlat = sub(second, scale(e1, dot(second, e1)));
+      const e2 = norm(secondFlat, 1);
+      const e3 = norm(cross(e1, e2), 1);
+      return [e1, e2, e3];
+    }
+    function rotationFromFrames(sourceFrame, targetFrame) {
+      return [0, 1, 2].map((row) => [0, 1, 2].map((col) =>
+        targetFrame.reduce((sum, targetAxis, index) => sum + component(targetAxis, row) * component(sourceFrame[index], col), 0)
+      ));
+    }
+    function permutationsOf(values) {
+      if (values.length <= 1) return [values];
+      const result = [];
+      values.forEach((value, index) => {
+        const rest = values.slice(0, index).concat(values.slice(index + 1));
+        permutationsOf(rest).forEach((perm) => result.push([value, ...perm]));
+      });
+      return result;
+    }
+    function simpleRootsForCurrentGroup() {
+      if (state.group === "S4") {
+        return [
+          norm(rootProjectionS4(1, 2), 1),
+          norm(rootProjectionS4(2, 3), 1),
+          norm(rootProjectionS4(3, 4), 1),
+        ];
+      }
+      return rootsFor(groupConfigs[state.group]).map((root) => norm(root, 1));
+    }
+    function reflectionRootLines(simpleRoots) {
+      const generators = simpleRoots.map(reflectionMatrix);
+      const elements = [{ matrix: identityMatrix(), key: matrixKey(identityMatrix()) }];
+      const seen = new Set([elements[0].key]);
+      for (let index = 0; index < elements.length; index += 1) {
+        generators.forEach((generator) => {
+          const matrix = matMul(elements[index].matrix, generator);
+          const key = matrixKey(matrix);
+          if (!seen.has(key)) {
+            seen.add(key);
+            elements.push({ matrix, key });
+          }
+        });
+      }
+      const roots = [];
+      elements.forEach((element) => {
+        simpleRoots.forEach((root) => {
+          const image = matVec(element.matrix, root);
+          pushRootLine(roots, image);
+        });
+      });
+      return roots;
+    }
+    function sourceSimpleRootsForSolid(poly) {
+      const face = poly.faces[0];
+      const vertex = poly.vertices[face[0]];
+      const edgeCenter = avg([poly.vertices[face[0]], poly.vertices[face[1]]]);
+      const faceCenter = avg(face.map((index) => poly.vertices[index]));
+      function wallNormal(first, second, inside) {
+        let normal = norm(cross(first, second), 1);
+        if (dot(normal, inside) < 0) normal = scale(normal, -1);
+        return normal;
+      }
+      return [
+        wallNormal(edgeCenter, faceCenter, vertex),
+        wallNormal(vertex, faceCenter, edgeCenter),
+        wallNormal(vertex, edgeCenter, faceCenter),
+      ];
+    }
+    function bestSolidAlignment(poly) {
+      const sourceRoots = sourceSimpleRootsForSolid(poly);
+      const sourceLines = reflectionRootLines(sourceRoots);
+      const targetRoots = simpleRootsForCurrentGroup();
+      const targetLines = state.data?.reflectionRoots?.length ? state.data.reflectionRoots : reflectionRootLines(targetRoots);
+      const sourcePermutations = [[0, 1, 2]];
+      const targetPermutations = permutationsOf([0, 1, 2]);
+      let best = identityMatrix();
+      let bestScore = Infinity;
+      sourcePermutations.forEach((sourceOrder) => {
+        targetPermutations.forEach((targetOrder) => {
+          for (let mask = 0; mask < 8; mask += 1) {
+            const orderedSource = sourceOrder.map((index) => sourceRoots[index]);
+            const orderedTarget = targetOrder.map((index, bit) => scale(targetRoots[index], (mask & (1 << bit)) ? -1 : 1));
+            const sourceFrame = frameFromPair(orderedSource[0], orderedSource[1]);
+            const targetFrame = frameFromPair(orderedTarget[0], orderedTarget[1]);
+            const matrix = rotationFromFrames(sourceFrame, targetFrame);
+            const thirdScore = 1 - Math.abs(dot(norm(matVec(matrix, orderedSource[2]), 1), norm(orderedTarget[2], 1)));
+            const lineScore = sourceLines.reduce((sum, root) => {
+              const rotated = norm(matVec(matrix, root), 1);
+              const match = targetLines.reduce((quality, target) => Math.max(quality, Math.abs(dot(rotated, norm(target, 1)))), 0);
+              return sum + (1 - match);
+            }, 0);
+            const score = lineScore + thirdScore * 10;
+            if (score < bestScore) {
+              bestScore = score;
+              best = matrix;
+            }
+          }
+        });
+      });
+      return best;
+    }
+    function alignPolyForCurrentGroup(poly) {
+      const matrix = bestSolidAlignment(poly);
+      return {
+        vertices: poly.vertices.map((vertex) => matVec(matrix, vertex)),
+        faces: poly.faces,
+      };
     }
 
     function polyhedronData(mode) {
@@ -568,7 +683,7 @@
     function normalizePoly(poly) {
       const vertices = poly.vertices.map(([x, y, z]) => norm({ x, y, z }, 3));
       const faces = poly.faces.map((face) => orientFace(face, vertices));
-      return buildFlagComplex({ vertices, faces });
+      return buildFlagComplex(alignPolyForCurrentGroup({ vertices, faces }));
     }
     function convexHullPoly(rawVertices) {
       const vertices = rawVertices.map(([x, y, z]) => norm({ x, y, z }, 3));
@@ -585,7 +700,7 @@
           }
         }
       }
-      return buildFlagComplex({ vertices, faces: dedupeFaces(faces) });
+      return buildFlagComplex(alignPolyForCurrentGroup({ vertices, faces: dedupeFaces(faces) }));
     }
     function orientFace(face, vertices) {
       const center = avg(face.map((index) => vertices[index]));
@@ -904,13 +1019,6 @@
         }
         ctx.strokeStyle = chamberStroke;
         ctx.lineWidth = 1.15;
-        ctx.globalAlpha = 0.18;
-        ctx.beginPath();
-        points.forEach((point, index) => {
-          if (index === 0) ctx.moveTo(point.x, point.y);
-          else ctx.lineTo(point.x, point.y);
-        });
-        ctx.stroke();
         drawProjectedSegments(points, true);
       });
     }
@@ -972,7 +1080,7 @@
     }
     function drawBraidMode(rect) {
       drawDisksWebgl(rect);
-      if (state.showCayley) drawCayleyForCoxeter(rect, false);
+      if (state.showCayley) drawCayleyForCoxeter(rect, true);
     }
     function drawPermutahedronMode(rect) {
       if (state.group !== "S4") {
