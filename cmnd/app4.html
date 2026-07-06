@@ -1,0 +1,1231 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rank 3 Affine Coxeter Arrangements</title>
+  <style>
+    :root {
+      --ink: #162033;
+      --muted: #667085;
+      --line: #d8dee8;
+      --soft-line: #edf0f5;
+      --panel: #ffffff;
+      --panel-soft: #f7f9fc;
+      --accent: #246bfe;
+      --accent-soft: #e8f0ff;
+      --accent-strong: #174fd0;
+      --green: #15803d;
+      --amber: #a16207;
+      --red: #b42318;
+      --shadow: 0 18px 45px rgba(25, 38, 70, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      background: #fff;
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
+
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    .app-shell {
+      width: min(1280px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 28px 0 40px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 0 2px 18px;
+    }
+
+    .eyebrow {
+      margin: 0 0 6px;
+      color: var(--accent);
+      font-size: 0.79rem;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+    }
+
+    h1 {
+      margin-bottom: 0;
+      font-size: clamp(2rem, 5vw, 3.35rem);
+      line-height: 1;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      margin-bottom: 6px;
+      font-size: 1.05rem;
+    }
+
+    h3 {
+      margin-bottom: 0;
+      font-size: 0.94rem;
+    }
+
+    .top-actions,
+    .button-row,
+    .control-line,
+    .toggle-line {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .top-actions {
+      justify-content: flex-end;
+    }
+
+    .segmented {
+      display: inline-flex;
+      padding: 3px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .segmented button {
+      min-width: 54px;
+      min-height: 38px;
+      border: 0;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--ink);
+      padding: 0 14px;
+      font-weight: 800;
+    }
+
+    .segmented button.active {
+      background: var(--ink);
+      color: #fff;
+    }
+
+    button,
+    select {
+      min-height: 40px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--ink);
+      padding: 0 12px;
+      font-weight: 780;
+    }
+
+    select {
+      min-width: 142px;
+      font-weight: 700;
+      outline: none;
+    }
+
+    select:focus,
+    input[type="range"]:focus-visible,
+    button:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 3px var(--accent-soft);
+      border-color: var(--accent);
+    }
+
+    button.primary {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: #fff;
+    }
+
+    button.primary:hover {
+      border-color: var(--accent-strong);
+      background: var(--accent-strong);
+    }
+
+    button.secondary:hover,
+    .family-toggle:hover {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+      color: var(--accent-strong);
+    }
+
+    button:disabled,
+    input:disabled {
+      cursor: not-allowed;
+      opacity: 0.45;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1.65fr) minmax(320px, 0.85fr);
+      gap: 22px;
+      align-items: start;
+    }
+
+    .scene-column {
+      min-width: 0;
+    }
+
+    .scene-head {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 0 2px 12px;
+    }
+
+    .fact-card p,
+    .range-value {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+
+    .scene-wrap {
+      position: relative;
+      height: min(72vh, 740px);
+      min-height: 520px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+      box-shadow: var(--shadow);
+    }
+
+    #scene {
+      position: absolute;
+      inset: 0;
+    }
+
+    .side-panel {
+      display: grid;
+      gap: 14px;
+    }
+
+    .fact-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      padding: 18px;
+    }
+
+    .control-stack {
+      display: grid;
+      gap: 16px;
+    }
+
+    .control-line {
+      align-items: start;
+      justify-content: space-between;
+    }
+
+    .control-line label,
+    .toggle-line label,
+    .mini-label {
+      color: var(--muted);
+      font-size: 0.84rem;
+      font-weight: 800;
+    }
+
+    .range-row {
+      display: grid;
+      gap: 7px;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    .toggle-line {
+      justify-content: space-between;
+      min-height: 30px;
+      border-top: 1px solid var(--soft-line);
+      padding-top: 12px;
+    }
+
+    input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--accent);
+    }
+
+    .family-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .family-toggle {
+      justify-content: start;
+      min-width: 0;
+      border-color: var(--line);
+      background: #fff;
+      color: var(--ink);
+      padding: 0 10px;
+      font-size: 0.86rem;
+    }
+
+    .family-toggle.active {
+      border-color: color-mix(in srgb, var(--family-color) 55%, white);
+      background: color-mix(in srgb, var(--family-color) 13%, white);
+    }
+
+    .swatch {
+      width: 11px;
+      height: 11px;
+      flex: 0 0 auto;
+      border-radius: 50%;
+      background: var(--family-color);
+      box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.8), 0 0 0 3px color-mix(in srgb, var(--family-color) 42%, white);
+    }
+
+    .family-toggle span:last-child {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .facts {
+      display: grid;
+      gap: 9px;
+      margin: 0;
+    }
+
+    .facts div {
+      display: grid;
+      grid-template-columns: 114px minmax(0, 1fr);
+      gap: 10px;
+      border-top: 1px solid var(--soft-line);
+      padding-top: 9px;
+    }
+
+    .facts div:first-child {
+      border-top: 0;
+      padding-top: 0;
+    }
+
+    dt {
+      color: var(--muted);
+      font-size: 0.8rem;
+      font-weight: 800;
+    }
+
+    dd {
+      margin: 0;
+      min-width: 0;
+      color: var(--ink);
+      font-size: 0.9rem;
+      font-weight: 760;
+      overflow-wrap: anywhere;
+    }
+
+    .matrix {
+      display: grid;
+      gap: 2px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      font-size: 0.84rem;
+      line-height: 1.35;
+    }
+
+    .root-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 10px;
+    }
+
+    .root-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid var(--soft-line);
+      border-radius: 8px;
+      background: var(--panel-soft);
+      padding: 5px 8px;
+      color: var(--ink);
+      font-size: 0.79rem;
+      font-weight: 800;
+    }
+
+    .type-symbol {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 1px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 0.98rem;
+      font-style: normal;
+      font-weight: 850;
+      letter-spacing: 0;
+      line-height: 1;
+    }
+
+    .type-letter {
+      position: relative;
+      display: inline-block;
+      padding-top: 0.16em;
+      line-height: 1;
+    }
+
+    .type-letter::before {
+      content: "~";
+      position: absolute;
+      left: 50%;
+      top: -0.5em;
+      transform: translateX(-50%);
+      font-size: 0.72em;
+      font-weight: 760;
+      line-height: 1;
+    }
+
+    .type-symbol sub {
+      font-size: 0.68em;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .math-type {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 1px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-style: italic;
+      font-weight: 700;
+    }
+
+    .tilde-letter {
+      position: relative;
+      display: inline-block;
+      padding-top: 0.12em;
+      line-height: 1;
+    }
+
+    .tilde-letter::before {
+      content: "~";
+      position: absolute;
+      left: 50%;
+      top: -0.54em;
+      transform: translateX(-50%);
+      font-size: 0.82em;
+      font-style: normal;
+      line-height: 1;
+    }
+
+    .math-type sub {
+      font-size: 0.68em;
+      line-height: 1;
+    }
+
+    @media (max-width: 920px) {
+      .topbar,
+      .scene-head {
+        align-items: start;
+        flex-direction: column;
+      }
+
+      .top-actions {
+        justify-content: flex-start;
+      }
+
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+
+      .scene-wrap {
+        height: 66vh;
+        min-height: 430px;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .app-shell {
+        width: min(100% - 20px, 1280px);
+        padding-top: 20px;
+      }
+
+      .family-list,
+      .facts div {
+        grid-template-columns: 1fr;
+      }
+
+      .scene-wrap {
+        min-height: 380px;
+      }
+
+    }
+  </style>
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Affine Coxeter groups</p>
+        <h1>Rank 3 affine arrangements</h1>
+      </div>
+      <div class="top-actions">
+        <div class="segmented" role="group" aria-label="Affine Coxeter type">
+          <button class="active" type="button" data-type="atilde2">
+            <span class="type-symbol"><span class="type-letter">A</span><sub>2</sub></span>
+          </button>
+          <button type="button" data-type="ctilde2">
+            <span class="type-symbol"><span class="type-letter">C</span><sub>2</sub></span>
+          </button>
+          <button type="button" data-type="gtilde2">
+            <span class="type-symbol"><span class="type-letter">G</span><sub>2</sub></span>
+          </button>
+        </div>
+        <button id="top-view" class="primary" type="button">Top view</button>
+      </div>
+    </header>
+
+    <section class="workspace" aria-label="Affine Coxeter arrangement app">
+      <section class="scene-column">
+        <div class="scene-wrap">
+          <div id="scene" aria-label="Interactive rank 3 affine Coxeter hyperplane arrangement"></div>
+        </div>
+      </section>
+
+      <aside class="side-panel" aria-label="Arrangement controls and data">
+        <section class="fact-card">
+          <h2>Controls</h2>
+          <div class="control-stack">
+            <div class="range-row">
+              <div class="control-line">
+                <label for="plane-count-slider">Hyperplanes</label>
+                <span id="plane-count-value" class="range-value">51 per family</span>
+              </div>
+              <input id="plane-count-slider" type="range" min="1" max="101" step="2" value="51">
+            </div>
+
+            <div class="range-row">
+              <div class="control-line">
+                <label for="bottom-slider">Bottom plane</label>
+                <span id="bottom-value" class="range-value">-1</span>
+              </div>
+              <input id="bottom-slider" type="range" min="0" max="1.5" step="0.01" value="1">
+            </div>
+
+            <div class="toggle-line">
+              <label for="show-hyperplanes">Hyperplanes</label>
+              <input id="show-hyperplanes" type="checkbox" checked>
+            </div>
+            <div class="toggle-line">
+              <label for="show-top-plane">Top plane</label>
+              <input id="show-top-plane" type="checkbox" checked>
+            </div>
+            <div class="toggle-line">
+              <label for="show-bottom-plane">Bottom plane</label>
+              <input id="show-bottom-plane" type="checkbox" checked>
+            </div>
+          </div>
+        </section>
+
+        <section class="fact-card">
+          <div class="control-line" style="margin-bottom: 8px;">
+            <h2>Families</h2>
+            <span id="family-count" class="range-value">3 active</span>
+          </div>
+          <div id="family-list" class="family-list"></div>
+        </section>
+      </aside>
+    </section>
+  </main>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.166.1/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.166.1/examples/jsm/"
+      }
+    }
+  </script>
+  <script type="module">
+    import * as THREE from "three";
+    import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+    const sqrt3 = Math.sqrt(3);
+    const EPS = 1e-7;
+    const topHeight = 1;
+    const startingViewExtent = 3;
+    const lineLift = 0.006;
+    const densePlaneCount = 41;
+    const sheetMeshLimit = 31;
+    const colors = ["#246bfe", "#15803d", "#a16207", "#dc2626", "#7c3aed", "#0891b2"];
+
+    function affineTypeHtml(letter) {
+      return `<span class="math-type"><span class="tilde-letter">${letter}</span><sub>2</sub></span>`;
+    }
+
+    const types = {
+      atilde2: {
+        title: "Ã₂",
+        htmlTitle: affineTypeHtml("A"),
+        matrix: [[1, 3, 3], [3, 1, 3], [3, 3, 1]],
+        families: [
+          { label: "&alpha;<sub>1</sub>", root: [1, 0], color: colors[0] },
+          { label: "&alpha;<sub>2</sub>", root: [-0.5, sqrt3 / 2], color: colors[1] },
+          { label: "&alpha;<sub>1</sub>+&alpha;<sub>2</sub>", root: [0.5, sqrt3 / 2], color: colors[2] },
+        ],
+      },
+      ctilde2: {
+        title: "C̃₂",
+        htmlTitle: affineTypeHtml("C"),
+        matrix: [[1, 4, 2], [4, 1, 4], [2, 4, 1]],
+        families: [
+          { label: "2&alpha;<sub>1</sub>+&alpha;<sub>2</sub>", root: [1, 0], color: colors[0] },
+          { label: "&alpha;<sub>2</sub>", root: [0, 1], color: colors[1] },
+          { label: "&alpha;<sub>1</sub>", root: [1, -1], color: colors[2] },
+          { label: "&alpha;<sub>1</sub>+&alpha;<sub>2</sub>", root: [1, 1], color: colors[3] },
+        ],
+      },
+      gtilde2: {
+        title: "G̃₂",
+        htmlTitle: affineTypeHtml("G"),
+        matrix: [[1, 2, 3], [2, 1, 6], [3, 6, 1]],
+        families: [
+          { label: "&alpha;<sub>1</sub>", root: [1, 0], color: colors[0] },
+          { label: "&alpha;<sub>2</sub>", root: [-1.5, sqrt3 / 2], color: colors[1] },
+          { label: "&alpha;<sub>1</sub>+&alpha;<sub>2</sub>", root: [-0.5, sqrt3 / 2], color: colors[2] },
+          { label: "2&alpha;<sub>1</sub>+&alpha;<sub>2</sub>", root: [0.5, sqrt3 / 2], color: colors[3] },
+          { label: "3&alpha;<sub>1</sub>+&alpha;<sub>2</sub>", root: [1.5, sqrt3 / 2], color: colors[4] },
+          { label: "3&alpha;<sub>1</sub>+2&alpha;<sub>2</sub>", root: [0, sqrt3], color: colors[5] },
+        ],
+      },
+    };
+
+    const state = {
+      typeKey: "atilde2",
+      extent: 6,
+      planeCount: 51,
+      bottomHeight: -topHeight,
+      showHyperplanes: true,
+      showTopPlane: true,
+      showBottomPlane: true,
+      visibleFamilies: new Set([0, 1, 2]),
+    };
+
+    const els = {
+      host: document.getElementById("scene"),
+      typeButtons: document.querySelectorAll("[data-type]"),
+      topView: document.getElementById("top-view"),
+      planeCountSlider: document.getElementById("plane-count-slider"),
+      planeCountValue: document.getElementById("plane-count-value"),
+      bottomSlider: document.getElementById("bottom-slider"),
+      bottomValue: document.getElementById("bottom-value"),
+      familyList: document.getElementById("family-list"),
+      familyCount: document.getElementById("family-count"),
+      showHyperplanes: document.getElementById("show-hyperplanes"),
+      showTopPlane: document.getElementById("show-top-plane"),
+      showBottomPlane: document.getElementById("show-bottom-plane"),
+    };
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xffffff);
+
+    const camera = new THREE.OrthographicCamera(-5, 5, 5, -5, 0.01, 100);
+    camera.up.set(0, 0, -1);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setClearColor(0xffffff, 1);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    els.host.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.minZoom = 0.48;
+    controls.maxZoom = 4.5;
+    controls.target.set(0, boxCenterY(), 0);
+
+    const world = new THREE.Group();
+    const hyperplaneGroup = new THREE.Group();
+    const sliceGroup = new THREE.Group();
+    const planeGroup = new THREE.Group();
+    const frameGroup = new THREE.Group();
+    world.add(planeGroup, hyperplaneGroup, sliceGroup, frameGroup);
+    scene.add(world);
+    scene.add(new THREE.AmbientLight(0xffffff, 1));
+
+    const resizeObserver = new ResizeObserver(() => {
+      resizeRenderer();
+      resetCamera(false);
+    });
+    resizeObserver.observe(els.host);
+
+    function activeType() {
+      return types[state.typeKey];
+    }
+
+    function formatNumber(value, digits = 2) {
+      return Number(value).toFixed(digits).replace(/\.?0+$/, "");
+    }
+
+    function boxCenterY() {
+      return (topHeight + state.bottomHeight) / 2;
+    }
+
+    function disposeObject(object) {
+      object.traverse((item) => {
+        if (item.geometry) item.geometry.dispose();
+        if (item.material) {
+          if (Array.isArray(item.material)) item.material.forEach((material) => material.dispose());
+          else item.material.dispose();
+        }
+        if (item.material?.map) item.material.map.dispose();
+      });
+    }
+
+    function clearGroup(group) {
+      while (group.children.length) {
+        const child = group.children[0];
+        group.remove(child);
+        disposeObject(child);
+      }
+    }
+
+    function resizeRenderer() {
+      const rect = els.host.getBoundingClientRect();
+      const width = Math.max(1, Math.floor(rect.width));
+      const height = Math.max(1, Math.floor(rect.height));
+      renderer.setSize(width, height, false);
+      updateCameraProjection();
+    }
+
+    function updateCameraProjection() {
+      const rect = els.host.getBoundingClientRect();
+      const aspect = Math.max(rect.width / Math.max(rect.height, 1), 0.1);
+      const frustumHeight = Math.max(4.6, startingViewExtent * 2.2 + 0.45);
+      camera.left = -frustumHeight * aspect / 2;
+      camera.right = frustumHeight * aspect / 2;
+      camera.top = frustumHeight / 2;
+      camera.bottom = -frustumHeight / 2;
+      camera.updateProjectionMatrix();
+    }
+
+    function resetCamera(forceTop = true) {
+      updateCameraProjection();
+      if (forceTop) {
+        camera.up.set(0, 0, -1);
+        camera.position.set(0, Math.max(5, startingViewExtent * 2.8), 0.0001);
+        camera.zoom = 1;
+        controls.target.set(0, boxCenterY(), 0);
+        controls.update();
+      }
+    }
+
+    function lineSegmentInDisk(a, b, c, radius) {
+      const norm2 = a * a + b * b;
+      if (norm2 < EPS) return null;
+      const norm = Math.sqrt(norm2);
+      const distance = Math.abs(c) / norm;
+      if (distance > radius + EPS) return null;
+      const center = { x: a * c / norm2, z: b * c / norm2 };
+      const tangent = { x: -b / norm, z: a / norm };
+      const halfLength = Math.sqrt(Math.max(radius * radius - distance * distance, 0));
+      return [
+        { x: center.x - tangent.x * halfLength, z: center.z - tangent.z * halfLength },
+        { x: center.x + tangent.x * halfLength, z: center.z + tangent.z * halfLength },
+      ];
+    }
+
+    function offsetsForFamily() {
+      const radius = Math.floor((state.planeCount - 1) / 2);
+      const first = -radius;
+      const last = radius;
+      const offsets = [];
+      for (let k = first; k <= last; k += 1) offsets.push(k);
+      return offsets;
+    }
+
+    function isDenseArrangement() {
+      return state.planeCount >= densePlaneCount;
+    }
+
+    function stripLayerCount() {
+      if (state.planeCount > 71) return 8;
+      if (state.planeCount >= densePlaneCount) return 12;
+      return 32;
+    }
+
+    function sideTraceStepCount() {
+      return 144;
+    }
+
+    function shouldDrawSheetMesh(offset) {
+      return state.showHyperplanes
+        && state.bottomHeight < topHeight - EPS
+        && Math.abs(offset) <= Math.floor(sheetMeshLimit / 2);
+    }
+
+    function cylinderPlaneStripSegments(a, b, k, radius, bottomHeight, layers = 32) {
+      const segments = [];
+      for (let i = 0; i <= layers; i += 1) {
+        const y = bottomHeight + (topHeight - bottomHeight) * i / layers;
+        const segment = lineSegmentInDisk(a, b, k * y, radius);
+        if (segment) segments.push(segment.map((point) => ({ x: point.x, y, z: point.z })));
+        else segments.push(null);
+      }
+      return segments;
+    }
+
+    function sideCylinderIntersectionPolylines(a, b, k, radius, bottomHeight, steps = 144) {
+      const wallLift = 0.012;
+      const sideRadius = radius + wallLift;
+      if (Math.abs(k) < EPS) {
+        const base = Math.atan2(b, a) + Math.PI / 2;
+        return [base, base + Math.PI].map((theta) => [
+          { x: sideRadius * Math.cos(theta), y: bottomHeight, z: sideRadius * Math.sin(theta) },
+          { x: sideRadius * Math.cos(theta), y: topHeight, z: sideRadius * Math.sin(theta) },
+        ]);
+      }
+
+      const polylines = [];
+      let current = [];
+      for (let i = 0; i <= steps; i += 1) {
+        const theta = 2 * Math.PI * i / steps;
+        const y = radius * (a * Math.cos(theta) + b * Math.sin(theta)) / k;
+        const valid = y >= bottomHeight - EPS && y <= topHeight + EPS;
+        if (valid) {
+          current.push({
+            x: sideRadius * Math.cos(theta),
+            y: Math.max(bottomHeight, Math.min(topHeight, y)),
+            z: sideRadius * Math.sin(theta),
+          });
+        } else if (current.length) {
+          if (current.length > 1) polylines.push(current);
+          current = [];
+        }
+      }
+      if (current.length > 1) polylines.push(current);
+      return polylines;
+    }
+
+    function sortPlanePoints(points, normal) {
+      const center = points.reduce((total, point) => ({
+        x: total.x + point.x / points.length,
+        y: total.y + point.y / points.length,
+        z: total.z + point.z / points.length,
+      }), { x: 0, y: 0, z: 0 });
+      const unitNormal = normal.clone().normalize();
+      const seed = Math.abs(unitNormal.y) < 0.85
+        ? new THREE.Vector3(0, 1, 0)
+        : new THREE.Vector3(1, 0, 0);
+      const u = new THREE.Vector3().crossVectors(seed, unitNormal).normalize();
+      const v = new THREE.Vector3().crossVectors(unitNormal, u).normalize();
+      const centerVector = new THREE.Vector3(center.x, center.y, center.z);
+      return points.slice().sort((left, right) => {
+        const leftVector = new THREE.Vector3(left.x, left.y, left.z).sub(centerVector);
+        const rightVector = new THREE.Vector3(right.x, right.y, right.z).sub(centerVector);
+        const leftAngle = Math.atan2(leftVector.dot(v), leftVector.dot(u));
+        const rightAngle = Math.atan2(rightVector.dot(v), rightVector.dot(u));
+        return leftAngle - rightAngle;
+      });
+    }
+
+    function createPlaneMeshFromStrips(strips, family, offset) {
+      const positions = [];
+      for (let i = 0; i < strips.length - 1; i += 1) {
+        const first = strips[i];
+        const second = strips[i + 1];
+        if (!first || !second) continue;
+        const quad = [first[0], first[1], second[1], first[0], second[1], second[0]];
+        quad.forEach((point) => positions.push(point.x, point.y, point.z));
+      }
+      if (!positions.length) return null;
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+      geometry.computeVertexNormals();
+      const material = new THREE.MeshBasicMaterial({
+        color: family.color,
+        side: THREE.DoubleSide,
+        transparent: false,
+        opacity: 1,
+        depthWrite: true,
+      });
+      return new THREE.Mesh(geometry, material);
+    }
+
+    function addPlaneOutline(points, color) {
+      const closed = points.concat(points[0]).map((point) => new THREE.Vector3(point.x, point.y, point.z));
+      const geometry = new THREE.BufferGeometry().setFromPoints(closed);
+      const material = new THREE.LineBasicMaterial({
+        color,
+        transparent: true,
+        opacity: 0.25,
+        depthWrite: false,
+      });
+      hyperplaneGroup.add(new THREE.Line(geometry, material));
+    }
+
+    function createTubeSegment(segment, height, radius, color, opacity) {
+      return createTubeBetweenPoints(
+        new THREE.Vector3(segment[0].x, height, segment[0].z),
+        new THREE.Vector3(segment[1].x, height, segment[1].z),
+        radius,
+        color,
+        opacity,
+      );
+    }
+
+    function createLineSegmentTrace(segment, height, color, opacity) {
+      const geometry = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(segment[0].x, height, segment[0].z),
+        new THREE.Vector3(segment[1].x, height, segment[1].z),
+      ]);
+      const material = new THREE.LineBasicMaterial({
+        color,
+        transparent: true,
+        opacity,
+        depthWrite: false,
+      });
+      return new THREE.Line(geometry, material);
+    }
+
+    function createTubeBetweenPoints(start, end, radius, color, opacity) {
+      const direction = new THREE.Vector3().subVectors(end, start);
+      const length = direction.length();
+      if (length < EPS) return null;
+
+      const geometry = new THREE.CylinderGeometry(radius, radius, length, 8, 1, true);
+      const material = new THREE.MeshBasicMaterial({
+        color,
+        transparent: true,
+        opacity,
+        depthWrite: false,
+      });
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.position.copy(start).add(end).multiplyScalar(0.5);
+      mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.normalize());
+      return mesh;
+    }
+
+    function addPolylineTrace(points, color, opacity) {
+      if (points.length < 2) return;
+      const geometry = new THREE.BufferGeometry().setFromPoints(
+        points.map((point) => new THREE.Vector3(point.x, point.y, point.z)),
+      );
+      const material = new THREE.LineBasicMaterial({
+        color,
+        transparent: true,
+        opacity,
+        depthWrite: false,
+      });
+      sliceGroup.add(new THREE.Line(geometry, material));
+    }
+
+    function addPolylineTubes(points, radius, color, opacity) {
+      for (let i = 0; i < points.length - 1; i += 1) {
+        const tube = createTubeBetweenPoints(
+          new THREE.Vector3(points[i].x, points[i].y, points[i].z),
+          new THREE.Vector3(points[i + 1].x, points[i + 1].y, points[i + 1].z),
+          radius,
+          color,
+          opacity,
+        );
+        if (tube) sliceGroup.add(tube);
+      }
+    }
+
+    function makeCylinderWall(radius, bottomHeight) {
+      const height = topHeight - bottomHeight;
+      const geometry = new THREE.CylinderGeometry(radius, radius, height, 160, 1, true);
+      const material = new THREE.MeshBasicMaterial({
+        color: 0xf8fbff,
+        side: THREE.DoubleSide,
+        transparent: false,
+        depthWrite: true,
+      });
+      const cylinder = new THREE.Mesh(geometry, material);
+      cylinder.name = "cylinder-wall";
+      cylinder.position.y = bottomHeight + height / 2;
+      return cylinder;
+    }
+
+    function makeHorizontalDisk(height, color, opacity, name, opaque = false) {
+      const geometry = new THREE.CircleGeometry(state.extent, 160);
+      const material = new THREE.MeshBasicMaterial({
+        color,
+        transparent: !opaque,
+        opacity,
+        side: THREE.DoubleSide,
+        depthWrite: opaque,
+      });
+      const disk = new THREE.Mesh(geometry, material);
+      disk.name = name;
+      disk.rotation.x = -Math.PI / 2;
+      disk.position.y = height;
+      return disk;
+    }
+
+    function makeGrid(height, color, opacity) {
+      const grid = new THREE.GridHelper(state.extent * 2, Math.max(4, Math.round(state.extent * 2)), color, color);
+      grid.position.y = height;
+      grid.material.transparent = true;
+      grid.material.opacity = opacity;
+      grid.material.depthWrite = false;
+      return grid;
+    }
+
+    function makeTextSprite(text, color) {
+      const canvas = document.createElement("canvas");
+      const context = canvas.getContext("2d");
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = 192 * dpr;
+      canvas.height = 64 * dpr;
+      context.scale(dpr, dpr);
+      context.font = "800 22px Inter, Segoe UI, sans-serif";
+      context.textAlign = "center";
+      context.textBaseline = "middle";
+      context.fillStyle = "rgba(255, 255, 255, 0.92)";
+      roundRectPath(context, 8, 10, 176, 44, 8);
+      context.fill();
+      context.strokeStyle = color;
+      context.lineWidth = 2;
+      roundRectPath(context, 8, 10, 176, 44, 8);
+      context.stroke();
+      context.fillStyle = color;
+      context.fillText(text, 96, 32);
+
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      const material = new THREE.SpriteMaterial({
+        map: texture,
+        transparent: true,
+        depthWrite: false,
+      });
+      const sprite = new THREE.Sprite(material);
+      sprite.scale.set(0.76, 0.25, 1);
+      return sprite;
+    }
+
+    function roundRectPath(context, x, y, width, height, radius) {
+      context.beginPath();
+      context.moveTo(x + radius, y);
+      context.lineTo(x + width - radius, y);
+      context.quadraticCurveTo(x + width, y, x + width, y + radius);
+      context.lineTo(x + width, y + height - radius);
+      context.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+      context.lineTo(x + radius, y + height);
+      context.quadraticCurveTo(x, y + height, x, y + height - radius);
+      context.lineTo(x, y + radius);
+      context.quadraticCurveTo(x, y, x + radius, y);
+      context.closePath();
+    }
+
+    function buildFrame() {
+      clearGroup(frameGroup);
+      const material = new THREE.LineBasicMaterial({
+        color: 0x162033,
+        transparent: true,
+        opacity: 0.42,
+      });
+      [state.bottomHeight, topHeight].forEach((height) => {
+        const points = [];
+        for (let i = 0; i <= 160; i += 1) {
+          const theta = 2 * Math.PI * i / 160;
+          points.push(new THREE.Vector3(state.extent * Math.cos(theta), height, state.extent * Math.sin(theta)));
+        }
+        frameGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), material.clone()));
+      });
+      [0, Math.PI / 2, Math.PI, 3 * Math.PI / 2].forEach((theta) => {
+        const x = state.extent * Math.cos(theta);
+        const z = state.extent * Math.sin(theta);
+        const geometry = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(x, state.bottomHeight, z),
+          new THREE.Vector3(x, topHeight, z),
+        ]);
+        frameGroup.add(new THREE.Line(geometry, material.clone()));
+      });
+    }
+
+    function rebuildScene() {
+      clearGroup(hyperplaneGroup);
+      clearGroup(sliceGroup);
+      clearGroup(planeGroup);
+      buildPlanes();
+      buildArrangements();
+      buildFrame();
+      updateUi();
+    }
+
+    function buildPlanes() {
+      buildSideWalls();
+      if (state.showTopPlane) {
+        planeGroup.add(makeHorizontalDisk(topHeight, 0xf8fbff, 1, "top-plane", true));
+      }
+      if (state.showBottomPlane) {
+        const finiteSlice = state.bottomHeight === 0;
+        planeGroup.add(makeHorizontalDisk(state.bottomHeight, finiteSlice ? 0xeaf7ef : 0xf7f9fc, 1, "bottom-plane", true));
+      }
+    }
+
+    function buildSideWalls() {
+      planeGroup.add(makeCylinderWall(state.extent, state.bottomHeight));
+    }
+
+    function buildArrangements() {
+      const type = activeType();
+      const dense = isDenseArrangement();
+      const stripLayers = stripLayerCount();
+      const sideSteps = sideTraceStepCount();
+      type.families.forEach((family, familyIndex) => {
+        if (!state.visibleFamilies.has(familyIndex)) return;
+        const [a, b] = family.root;
+        const offsets = offsetsForFamily();
+        offsets.forEach((offset) => {
+          const topSegment = lineSegmentInDisk(a, b, offset * topHeight, state.extent);
+          if (topSegment) {
+            const radius = offset === 0 ? 0.008 : 0.0055;
+            const topLine = dense
+              ? createLineSegmentTrace(topSegment, topHeight + lineLift, family.color, offset === 0 ? 0.96 : 0.78)
+              : createTubeSegment(topSegment, topHeight + lineLift, radius, family.color, offset === 0 ? 0.96 : 0.78);
+            if (topLine) sliceGroup.add(topLine);
+          }
+
+          if (shouldDrawSheetMesh(offset)) {
+            const strips = cylinderPlaneStripSegments(a, b, offset, state.extent, state.bottomHeight, stripLayers);
+            const mesh = createPlaneMeshFromStrips(strips, family, offset);
+            if (mesh) hyperplaneGroup.add(mesh);
+          }
+
+          if (state.bottomHeight !== 0) {
+            const bottomSegment = lineSegmentInDisk(a, b, offset * state.bottomHeight, state.extent);
+            if (bottomSegment) {
+              const bottomTraceHeight = state.bottomHeight - lineLift;
+              const bottomLine = dense
+                ? createLineSegmentTrace(bottomSegment, bottomTraceHeight, family.color, offset === 0 ? 0.88 : 0.48)
+                : createTubeSegment(bottomSegment, bottomTraceHeight, 0.0045, family.color, offset === 0 ? 0.82 : 0.42);
+              if (bottomLine) sliceGroup.add(bottomLine);
+            }
+          }
+
+          sideCylinderIntersectionPolylines(a, b, offset, state.extent, state.bottomHeight, sideSteps).forEach((polyline) => {
+            addPolylineTrace(polyline, family.color, offset === 0 ? 0.96 : 0.72);
+          });
+        });
+
+        if (state.bottomHeight === 0) {
+          const finiteSegment = lineSegmentInDisk(a, b, 0, state.extent);
+          if (finiteSegment) {
+            const finiteTraceHeight = -lineLift * 1.65;
+            const finiteLine = dense
+              ? createLineSegmentTrace(finiteSegment, finiteTraceHeight, family.color, 0.98)
+              : createTubeSegment(finiteSegment, finiteTraceHeight, 0.012, family.color, 0.98);
+            if (finiteLine) sliceGroup.add(finiteLine);
+          }
+        }
+
+      });
+    }
+
+    function rebuildFamilyControls() {
+      const type = activeType();
+      els.familyList.innerHTML = type.families.map((family, index) => (
+        `<button class="family-toggle active" type="button" data-family="${index}" style="--family-color: ${family.color}">
+          <span class="swatch" aria-hidden="true"></span><span>${family.label}</span>
+        </button>`
+      )).join("");
+    }
+
+    function updateFamilyControls() {
+      els.familyList.querySelectorAll("[data-family]").forEach((button) => {
+        button.classList.toggle("active", state.visibleFamilies.has(Number(button.dataset.family)));
+      });
+      els.familyCount.textContent = `${state.visibleFamilies.size} active`;
+    }
+
+    function updateUi() {
+      const bottomText = formatNumber(state.bottomHeight, 2);
+      els.planeCountValue.textContent = `${state.planeCount} per family`;
+      els.bottomValue.textContent = bottomText;
+      els.bottomSlider.value = String(-state.bottomHeight);
+      els.planeCountSlider.value = String(state.planeCount);
+      els.typeButtons.forEach((button) => {
+        button.classList.toggle("active", button.dataset.type === state.typeKey);
+      });
+      updateFamilyControls();
+    }
+
+    function setType(typeKey) {
+      if (!types[typeKey] || typeKey === state.typeKey) return;
+      state.typeKey = typeKey;
+      state.visibleFamilies = new Set(activeType().families.map((_, index) => index));
+      rebuildFamilyControls();
+      rebuildScene();
+      resetCamera(true);
+    }
+
+    els.typeButtons.forEach((button) => {
+      button.addEventListener("click", () => setType(button.dataset.type));
+    });
+    els.topView.addEventListener("click", () => resetCamera(true));
+    els.planeCountSlider.addEventListener("input", () => {
+      state.planeCount = Number(els.planeCountSlider.value);
+      rebuildScene();
+    });
+    els.bottomSlider.addEventListener("input", () => {
+      state.bottomHeight = -Number(els.bottomSlider.value);
+      rebuildScene();
+      controls.target.set(0, boxCenterY(), 0);
+      controls.update();
+    });
+    els.familyList.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-family]");
+      if (!button) return;
+      const index = Number(button.dataset.family);
+      if (state.visibleFamilies.has(index)) state.visibleFamilies.delete(index);
+      else state.visibleFamilies.add(index);
+      rebuildScene();
+    });
+    els.showHyperplanes.addEventListener("change", () => {
+      state.showHyperplanes = els.showHyperplanes.checked;
+      rebuildScene();
+    });
+    els.showTopPlane.addEventListener("change", () => {
+      state.showTopPlane = els.showTopPlane.checked;
+      rebuildScene();
+    });
+    els.showBottomPlane.addEventListener("change", () => {
+      state.showBottomPlane = els.showBottomPlane.checked;
+      rebuildScene();
+    });
+
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    resizeRenderer();
+    rebuildFamilyControls();
+    rebuildScene();
+    resetCamera(true);
+    animate();
+  </script>
+</body>
+</html>
