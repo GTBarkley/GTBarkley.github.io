@@ -280,7 +280,11 @@
     }
 
     .family-toggle {
+      display: grid;
+      grid-template-columns: 16px minmax(0, 1fr);
       justify-content: start;
+      align-items: center;
+      gap: 8px;
       min-width: 0;
       border-color: var(--line);
       background: #fff;
@@ -298,16 +302,18 @@
       width: 11px;
       height: 11px;
       flex: 0 0 auto;
+      justify-self: center;
       border-radius: 50%;
       background: var(--family-color);
       box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.8), 0 0 0 3px color-mix(in srgb, var(--family-color) 42%, white);
     }
 
-    .family-toggle span:last-child {
+    .family-label {
       min-width: 0;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      line-height: 1.15;
     }
 
     .facts {
@@ -1205,7 +1211,7 @@
       const type = activeType();
       els.familyList.innerHTML = type.families.map((family, index) => (
         `<button class="family-toggle active" type="button" data-family="${index}" style="--family-color: ${family.color}">
-          <span class="swatch" aria-hidden="true"></span><span>${family.label}</span>
+          <span class="swatch" aria-hidden="true"></span><span class="family-label">${family.label}</span>
         </button>`
       )).join("");
     }
