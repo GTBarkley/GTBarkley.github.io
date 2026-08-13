@@ -88,7 +88,14 @@ const nodes = {
   tooltip: document.getElementById("tooltip"),
   rootCount: document.getElementById("root-count"),
   selectRank2Toggle: document.getElementById("select-rank-2-toggle"),
+  arrangementViewToggleWrap: document.getElementById("arrangement-view-toggle-wrap"),
   arrangementViewToggle: document.getElementById("arrangement-view-toggle"),
+  separatingLineToggle: document.getElementById("separating-line-toggle"),
+  separatingLineActions: document.getElementById("separating-line-actions"),
+  flipSeparatingSideButton: document.getElementById("flip-separating-side-button"),
+  separatedRootsButton: document.getElementById("separated-roots-button"),
+  findSeparatingLineButton: document.getElementById("find-separating-line-button"),
+  separatingLineStatus: document.getElementById("separating-line-status"),
   clearPairButton: document.getElementById("clear-pair-button"),
   resetViewButton: document.getElementById("reset-view-button"),
   rootTableBody: document.getElementById("root-table-body"),
@@ -106,10 +113,22 @@ let dualLineElements = [];
 let currentLineElement = null;
 let selectedRootIndices = [];
 let highlightedLineRootIndices = new Set();
-let selectRank2Enabled = true;
+let selectRank2Enabled = false;
 let arrangementViewEnabled = false;
 let hiddenRootKeys = new Set();
 let lastCartanSignature = null;
+let currentConeData = null;
+let separatingBackgroundLayer = null;
+let separatingForegroundLayer = null;
+let separatingLineEnabled = false;
+const separatingLine = {
+  first: null,
+  second: null,
+  halfspaceSign: 1,
+  dragPointerId: null,
+  dragHandle: null,
+  regionHighlight: null,
+};
 const plotView = {
   scale: 1,
   tx: 0,
@@ -152,7 +171,12 @@ function setupControls() {
   nodes.maxHeightInput.addEventListener("input", renderAll);
   nodes.selectRank2Toggle.addEventListener("change", onSelectRank2Toggle);
   nodes.arrangementViewToggle.addEventListener("change", onArrangementViewToggle);
+  nodes.separatingLineToggle.addEventListener("change", onSeparatingLineToggle);
+  nodes.flipSeparatingSideButton.addEventListener("click", flipSeparatingHalfspace);
+  nodes.separatedRootsButton.addEventListener("click", selectSeparatedRoots);
+  nodes.findSeparatingLineButton.addEventListener("click", findSeparatingLine);
 
+  syncSeparatingLineControls();
   applyPreset();
   runExtensionHook("afterSetup");
 }
@@ -164,6 +188,19 @@ function onArrangementViewToggle() {
 
 function onSelectRank2Toggle() {
   setSelectRank2Enabled(nodes.selectRank2Toggle.checked);
+}
+
+function onSeparatingLineToggle() {
+  separatingLineEnabled = nodes.separatingLineToggle.checked;
+  if (separatingLineEnabled) {
+    ensureSeparatingLine();
+    setSeparatingLineStatus("Drag either gold point to position the separating line.");
+  } else {
+    separatingLine.regionHighlight = null;
+    setSeparatingLineStatus("");
+  }
+  syncSeparatingLineControls();
+  refreshLineSelectionVisuals();
 }
 
 function setupPresetMenu() {
@@ -381,9 +418,11 @@ function renderAll(options = {}) {
       .filter((index) => isRootVisible(currentRoots[index]))
       .slice(0, selectRank2Enabled ? 2 : Number.POSITIVE_INFINITY);
     recomputeLineSelection();
+    invalidateSeparatingRegionHighlight();
   } else {
     selectedRootIndices = [];
     highlightedLineRootIndices = new Set();
+    separatingLine.regionHighlight = null;
   }
   currentLineElement = null;
   drawMatrixOutput(cartan);
@@ -405,11 +444,28 @@ function createViewerApp() {
       arrangementViewEnabled,
       currentRoots,
       highlightedLineRootIndices,
+      separatingLineEnabled,
       selectedRootIndices,
       selectRank2Enabled,
       visibleRootCount,
     }),
+    getPlotContext: () => ({
+      arrangementViewEnabled,
+      currentConeData,
+      dualLineElements,
+      plotLayer,
+      plotScale: plotView.scale,
+      rootCircles,
+    }),
     getPresetName: () => nodes.presetSelect?.value || "",
+    canvasRectangle,
+    clipPolygonToHalfPlane,
+    createSvgElement: svgElement,
+    dualRegionDataForLine,
+    extendedLineThroughPoints,
+    lineSignedValue,
+    orientedDualVectorForLine,
+    plotPointFromClient,
     readMatrix,
     readMaxHeight,
     renderAll,
@@ -417,6 +473,7 @@ function createViewerApp() {
     reflect,
     isPositive,
     selectRootsByKeys,
+    setSeparatingHalfspace,
     setTitle: setViewerTitle,
     setTitleSuffix: (suffix = "") => setViewerTitle(`${BASE_VIEWER_TITLE}${suffix}`),
     setSelectRank2Enabled,
@@ -471,9 +528,11 @@ function setSelectRank2Enabled(enabled) {
   if (selectedRootIndices.length > 2 && selectRank2Enabled) {
     selectedRootIndices = [];
   }
+  invalidateSeparatingRegionHighlight();
   recomputeLineSelection();
   refreshLineSelectionVisuals();
   drawTable();
+  runExtensionHook("afterSelectRank2Change", { enabled: selectRank2Enabled });
 }
 
 function selectRootsByKeys(keys, options = {}) {
@@ -491,6 +550,7 @@ function selectRootsByKeys(keys, options = {}) {
   if (selectRank2Enabled && selectedRootIndices.length > 2) {
     selectedRootIndices = [];
   }
+  invalidateSeparatingRegionHighlight();
   recomputeLineSelection();
   refreshRootVisibilityVisuals();
   refreshLineSelectionVisuals();
@@ -809,6 +869,9 @@ function drawPlot(roots, cartan) {
   rootCircles = [];
   dualLineElements = [];
   currentLineElement = null;
+  currentConeData = null;
+  separatingBackgroundLayer = null;
+  separatingForegroundLayer = null;
   plotLayer = svgElement("g", {});
   svg.append(plotLayer);
   applyPlotTransform();
@@ -820,6 +883,11 @@ function drawPlot(roots, cartan) {
       class: "triangle-fill",
     }),
   );
+
+  separatingBackgroundLayer = svgElement("g", {
+    class: "separating-background-layer",
+  });
+  plotLayer.append(separatingBackgroundLayer);
 
   for (const line of simplexGridLines()) {
     plotLayer.append(
@@ -841,7 +909,8 @@ function drawPlot(roots, cartan) {
   );
 
   const coneData = drawIsotropicCone(cartan);
-  nodes.arrangementViewToggle.parentElement.hidden = !coneData;
+  currentConeData = coneData;
+  nodes.arrangementViewToggleWrap.style.display = coneData ? "" : "none";
   nodes.arrangementViewToggle.checked = coneData ? arrangementViewEnabled : false;
   if (!coneData && arrangementViewEnabled) {
     arrangementViewEnabled = false;
@@ -896,6 +965,11 @@ function drawPlot(roots, cartan) {
     plotLayer.append(circle);
     rootCircles.push(circle);
   }
+
+  separatingForegroundLayer = svgElement("g", {
+    class: "separating-foreground-layer",
+  });
+  plotLayer.append(separatingForegroundLayer);
   updateRootCircleScreenSize();
   refreshRootVisibilityVisuals();
   refreshLineSelectionVisuals();
@@ -1126,6 +1200,7 @@ function toggleRootVisibility(index) {
     const selectedRoot = currentRoots[selectedIndex];
     return selectedRoot && isRootVisible(selectedRoot);
   });
+  separatingLine.regionHighlight = null;
   recomputeLineSelection();
   refreshRootVisibilityVisuals();
   refreshLineSelectionVisuals();
@@ -1254,6 +1329,10 @@ function onPlotPointerDown(event) {
 }
 
 function onPlotPointerMove(event) {
+  if (separatingLine.dragPointerId === event.pointerId) {
+    moveSeparatingHandle(event);
+    return;
+  }
   if (plotView.activePointers.has(event.pointerId)) {
     plotView.activePointers.set(event.pointerId, {
       x: event.clientX,
@@ -1287,6 +1366,10 @@ function onPlotPointerMove(event) {
 }
 
 function onPlotPointerUp(event) {
+  if (separatingLine.dragPointerId === event.pointerId) {
+    endSeparatingHandleDrag(event);
+    return;
+  }
   plotView.activePointers.delete(event.pointerId);
   if (plotView.activePointers.size < 2) {
     plotView.pinchDistance = null;
@@ -1319,11 +1402,13 @@ function resetPlotView() {
   plotView.pinchMidpoint = null;
   nodes.plot.classList.remove("is-dragging");
   applyPlotTransform();
+  runExtensionHook("afterResetView");
 }
 
 function clearLineSelection() {
   selectedRootIndices = [];
   highlightedLineRootIndices = new Set();
+  invalidateSeparatingRegionHighlight();
   refreshLineSelectionVisuals();
   drawTable();
 }
@@ -1337,6 +1422,8 @@ function applyPlotTransform() {
     `translate(${plotView.tx} ${plotView.ty}) scale(${plotView.scale})`,
   );
   updateRootCircleScreenSize();
+  updateSeparatingHandleScreenSize();
+  runExtensionHook("afterPlotTransform");
 }
 
 function clientToSvgPoint(clientX, clientY) {
@@ -1462,9 +1549,15 @@ function onRootClick(index) {
       : [...selectedRootIndices, index];
   }
 
+  invalidateSeparatingRegionHighlight();
   recomputeLineSelection();
   refreshLineSelectionVisuals();
   drawTable();
+  runExtensionHook("afterRootClick", {
+    index,
+    root,
+    selected: selectedRootIndices.includes(index),
+  });
 }
 
 function recomputeLineSelection() {
@@ -1497,6 +1590,646 @@ function isRootOnLine(candidate, first, second) {
   const area2 = (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
   const scale = Math.max(1, Math.abs(bx - ax) + Math.abs(by - ay));
   return Math.abs(area2) <= 1e-6 * scale;
+}
+
+function syncSeparatingLineControls() {
+  const disabled = !separatingLineEnabled;
+  nodes.separatingLineActions.hidden = disabled;
+  nodes.flipSeparatingSideButton.disabled = disabled;
+  nodes.separatedRootsButton.disabled = disabled;
+  nodes.findSeparatingLineButton.disabled = disabled;
+}
+
+function setSeparatingLineStatus(message) {
+  nodes.separatingLineStatus.textContent = message;
+}
+
+function ensureSeparatingLine() {
+  if (separatingLine.first && separatingLine.second) {
+    return;
+  }
+  separatingLine.first = barycentricToCanvas([0.58, 0.34, 0.08]);
+  separatingLine.second = barycentricToCanvas([0.08, 0.34, 0.58]);
+  separatingLine.halfspaceSign = 1;
+}
+
+function selectedRootSignature(indices = selectedRootIndices) {
+  return indices
+    .map((index) => currentRoots[index])
+    .filter(Boolean)
+    .map((root) => vectorKey(root.vector))
+    .sort()
+    .join("|");
+}
+
+function invalidateSeparatingRegionHighlight() {
+  if (
+    separatingLine.regionHighlight
+    && separatingLine.regionHighlight.selectionSignature !== selectedRootSignature()
+  ) {
+    separatingLine.regionHighlight = null;
+    if (separatingLineEnabled) {
+      setSeparatingLineStatus("");
+    }
+  }
+}
+
+function visibleRootIndices() {
+  return currentRoots
+    .map((root, index) => ({ root, index }))
+    .filter(({ root }) => isRootVisible(root))
+    .map(({ index }) => index);
+}
+
+function lineSignedValue(first, second, point) {
+  return (second.x - first.x) * (point.y - first.y)
+    - (second.y - first.y) * (point.x - first.x);
+}
+
+function lineTolerance(first, second) {
+  return Math.max(1, Math.hypot(second.x - first.x, second.y - first.y)) * 1e-7;
+}
+
+function shadedRootClassification(first = separatingLine.first, second = separatingLine.second) {
+  if (!first || !second) {
+    return { indices: [], boundaryIndices: [] };
+  }
+  const tolerance = lineTolerance(first, second);
+  const indices = [];
+  const boundaryIndices = [];
+  for (const index of visibleRootIndices()) {
+    const value = lineSignedValue(first, second, currentRoots[index].point);
+    if (Math.abs(value) <= tolerance) {
+      boundaryIndices.push(index);
+    } else if (value * separatingLine.halfspaceSign > 0) {
+      indices.push(index);
+    }
+  }
+  return { indices, boundaryIndices };
+}
+
+function flipSeparatingHalfspace() {
+  if (!separatingLineEnabled) {
+    return;
+  }
+  separatingLine.halfspaceSign *= -1;
+  updateShadedSideStatus();
+  renderSeparatingOverlays();
+}
+
+function updateShadedSideStatus() {
+  const classification = shadedRootClassification();
+  setSeparatingLineStatus(
+    `The shaded side contains ${classification.indices.length} visible root${classification.indices.length === 1 ? "" : "s"}.`,
+  );
+}
+
+function setSeparatingHalfspace(first, second, halfspaceSign) {
+  separatingLine.first = { ...first };
+  separatingLine.second = { ...second };
+  separatingLine.halfspaceSign = halfspaceSign >= 0 ? 1 : -1;
+  separatingLine.regionHighlight = null;
+  if (separatingLineEnabled) {
+    updateShadedSideStatus();
+    renderSeparatingOverlays();
+  }
+}
+
+function selectSeparatedRoots() {
+  if (!separatingLineEnabled) {
+    return;
+  }
+  const classification = shadedRootClassification();
+  if (selectRank2Enabled && classification.indices.length > 2) {
+    selectRank2Enabled = false;
+    nodes.selectRank2Toggle.checked = false;
+  }
+  selectedRootIndices = classification.indices;
+  recomputeLineSelection();
+
+  separatingLine.regionHighlight = null;
+  const witness = findSeparatingLineForSelectedRoots();
+  const highlighted = witness ? activateSeparatingRegionHighlight(witness) : false;
+  const boundaryNote = classification.boundaryIndices.length
+    ? ` ${classification.boundaryIndices.length} root${classification.boundaryIndices.length === 1 ? " lies" : "s lie"} on the line.`
+    : "";
+  const highlightNote = highlighted ? " Its dual region is highlighted." : "";
+  setSeparatingLineStatus(
+    `Selected ${classification.indices.length} root${classification.indices.length === 1 ? "" : "s"} from the shaded open half-space.${boundaryNote}${highlightNote}`,
+  );
+  refreshLineSelectionVisuals();
+  drawTable();
+}
+
+function findSeparatingLine() {
+  if (!separatingLineEnabled) {
+    return;
+  }
+  const result = findSeparatingLineForSelectedRoots();
+  if (!result) {
+    separatingLine.regionHighlight = null;
+    setSeparatingLineStatus("The current visible-root selection is not separable by a line.");
+    refreshLineSelectionVisuals();
+    return;
+  }
+
+  separatingLine.first = result.first;
+  separatingLine.second = result.second;
+  separatingLine.halfspaceSign = result.halfspaceSign;
+  const highlighted = activateSeparatingRegionHighlight(result);
+  setSeparatingLineStatus(
+    `Found a separating line for the ${selectedRootIndices.length} selected root${selectedRootIndices.length === 1 ? "" : "s"}.${highlighted ? " Its dual region is highlighted." : ""}`,
+  );
+  refreshLineSelectionVisuals();
+}
+
+function findSeparatingLineForSelectedRoots() {
+  const universe = visibleRootIndices();
+  if (!universe.length) {
+    return null;
+  }
+  const selected = new Set(selectedRootIndices.filter((index) => universe.includes(index)));
+  const selectedPoints = universe
+    .filter((index) => selected.has(index))
+    .map((index) => currentRoots[index].point);
+  const unselectedPoints = universe
+    .filter((index) => !selected.has(index))
+    .map((index) => currentRoots[index].point);
+
+  if (!selectedPoints.length || !unselectedPoints.length) {
+    const normal = { x: 1, y: 0 };
+    const projections = universe.map((index) => currentRoots[index].point.x);
+    const margin = 20;
+    const threshold = selectedPoints.length
+      ? Math.min(...projections) - margin
+      : Math.max(...projections) + margin;
+    return separatingLineForNormal(normal, threshold, selected, universe);
+  }
+
+  const criticalAngles = [0];
+  const points = universe.map((index) => currentRoots[index].point);
+  for (let i = 0; i < points.length; i += 1) {
+    for (let j = i + 1; j < points.length; j += 1) {
+      const dx = points[j].x - points[i].x;
+      const dy = points[j].y - points[i].y;
+      if (Math.hypot(dx, dy) <= 1e-8) {
+        continue;
+      }
+      let angle = Math.atan2(dy, dx) + Math.PI / 2;
+      angle %= Math.PI;
+      if (angle < 0) {
+        angle += Math.PI;
+      }
+      criticalAngles.push(angle);
+    }
+  }
+  criticalAngles.sort((left, right) => left - right);
+  const angles = criticalAngles.filter(
+    (angle, index) => index === 0 || Math.abs(angle - criticalAngles[index - 1]) > 1e-9,
+  );
+
+  for (let i = 0; i < angles.length; i += 1) {
+    const start = angles[i];
+    const end = i + 1 < angles.length ? angles[i + 1] : angles[0] + Math.PI;
+    const angle = (start + end) / 2;
+    for (const orientation of [1, -1]) {
+      const normal = {
+        x: orientation * Math.cos(angle),
+        y: orientation * Math.sin(angle),
+      };
+      const candidate = separatingLineForNormal(normal, null, selected, universe);
+      if (candidate) {
+        return candidate;
+      }
+    }
+  }
+  return null;
+}
+
+function separatingLineForNormal(normal, threshold, selected, universe) {
+  const selectedProjections = [];
+  const unselectedProjections = [];
+  for (const index of universe) {
+    const point = currentRoots[index].point;
+    const projection = normal.x * point.x + normal.y * point.y;
+    if (selected.has(index)) {
+      selectedProjections.push(projection);
+    } else {
+      unselectedProjections.push(projection);
+    }
+  }
+
+  let lineThreshold = threshold;
+  if (lineThreshold === null) {
+    const minSelected = Math.min(...selectedProjections);
+    const maxUnselected = Math.max(...unselectedProjections);
+    const scale = Math.max(
+      1,
+      ...selectedProjections.map(Math.abs),
+      ...unselectedProjections.map(Math.abs),
+    );
+    if (minSelected - maxUnselected <= scale * 1e-8) {
+      return null;
+    }
+    lineThreshold = (minSelected + maxUnselected) / 2;
+  }
+
+  const controls = controlPointsForLine(normal, lineThreshold);
+  const tolerance = lineTolerance(controls.first, controls.second);
+  let halfspaceSign = 1;
+  for (const index of universe) {
+    const value = lineSignedValue(controls.first, controls.second, currentRoots[index].point);
+    if (Math.abs(value) <= tolerance) {
+      return null;
+    }
+    if (selected.has(index)) {
+      halfspaceSign = value > 0 ? 1 : -1;
+      break;
+    }
+    halfspaceSign = value > 0 ? -1 : 1;
+  }
+
+  const candidate = {
+    first: controls.first,
+    second: controls.second,
+    halfspaceSign,
+  };
+  return lineMatchesSelectedRoots(candidate, selected, universe) ? candidate : null;
+}
+
+function controlPointsForLine(normal, threshold) {
+  const anchor = {
+    x: normal.x * threshold,
+    y: normal.y * threshold,
+  };
+  const direction = { x: -normal.y, y: normal.x };
+  const extended = extendedLineThroughPoints(
+    { x: anchor.x - direction.x * 2000, y: anchor.y - direction.y * 2000 },
+    { x: anchor.x + direction.x * 2000, y: anchor.y + direction.y * 2000 },
+    720,
+    640,
+  );
+  if (extended) {
+    const start = { x: extended.x1, y: extended.y1 };
+    const end = { x: extended.x2, y: extended.y2 };
+    return {
+      first: interpolatePoint(start, end, 0.2),
+      second: interpolatePoint(start, end, 0.8),
+    };
+  }
+  return {
+    first: { x: anchor.x - direction.x * 120, y: anchor.y - direction.y * 120 },
+    second: { x: anchor.x + direction.x * 120, y: anchor.y + direction.y * 120 },
+  };
+}
+
+function interpolatePoint(first, second, t) {
+  return {
+    x: first.x + (second.x - first.x) * t,
+    y: first.y + (second.y - first.y) * t,
+  };
+}
+
+function lineMatchesSelectedRoots(candidate, selected, universe) {
+  const tolerance = lineTolerance(candidate.first, candidate.second);
+  return universe.every((index) => {
+    const value = lineSignedValue(candidate.first, candidate.second, currentRoots[index].point);
+    if (Math.abs(value) <= tolerance) {
+      return false;
+    }
+    return (value * candidate.halfspaceSign > 0) === selected.has(index);
+  });
+}
+
+function activateSeparatingRegionHighlight(candidate) {
+  const dualData = dualRegionDataForLine(candidate);
+  if (
+    !dualData
+    || !isDualRegionVisible(dualData.point)
+    || !lineMatchesSelectedRoots(candidate, new Set(selectedRootIndices), visibleRootIndices())
+  ) {
+    separatingLine.regionHighlight = null;
+    return false;
+  }
+  separatingLine.regionHighlight = {
+    selectionSignature: selectedRootSignature(),
+    point: dualData.point,
+    dualSign: dualData.dualSign,
+  };
+  return true;
+}
+
+function isDualRegionVisible(point) {
+  return Boolean(
+    currentConeData
+    && (arrangementViewEnabled || pointInPolygon(point, currentConeData.points)),
+  );
+}
+
+function dualRegionDataForLine(candidate) {
+  if (!currentConeData) {
+    return null;
+  }
+  const first = canvasToBarycentric(candidate.first);
+  const second = canvasToBarycentric(candidate.second);
+  const firstEquation = vectorMatrixProduct(first, currentConeData.bilinear);
+  const secondEquation = vectorMatrixProduct(second, currentConeData.bilinear);
+  const dualVector = crossProduct3(firstEquation, secondEquation);
+  const sum = dualVector[0] + dualVector[1] + dualVector[2];
+  if (Math.abs(sum) <= 1e-9) {
+    return null;
+  }
+  const normalizedDual = dualVector.map((value) => value / sum);
+  const point = barycentricToCanvas(normalizedDual);
+  const tolerance = lineTolerance(candidate.first, candidate.second);
+  for (const index of visibleRootIndices()) {
+    const root = currentRoots[index];
+    const lineValue = lineSignedValue(candidate.first, candidate.second, root.point);
+    const dualValue = quadraticPair(root.barycentric, currentConeData.bilinear, normalizedDual);
+    if (Math.abs(lineValue) > tolerance && Math.abs(dualValue) > 1e-10) {
+      return {
+        point,
+        dualSign: candidate.halfspaceSign * Math.sign(lineValue * dualValue),
+      };
+    }
+  }
+  return null;
+}
+
+function orientedDualVectorForLine(candidate) {
+  if (!currentConeData) {
+    return null;
+  }
+  const first = canvasToBarycentric(candidate.first);
+  const second = canvasToBarycentric(candidate.second);
+  const firstEquation = vectorMatrixProduct(first, currentConeData.bilinear);
+  const secondEquation = vectorMatrixProduct(second, currentConeData.bilinear);
+  const dualVector = crossProduct3(firstEquation, secondEquation);
+  const tolerance = lineTolerance(candidate.first, candidate.second);
+  for (const index of visibleRootIndices()) {
+    const root = currentRoots[index];
+    const lineValue = lineSignedValue(candidate.first, candidate.second, root.point);
+    const dualValue = quadraticPair(root.barycentric, currentConeData.bilinear, dualVector);
+    if (Math.abs(lineValue) > tolerance && Math.abs(dualValue) > 1e-10) {
+      const orientation = candidate.halfspaceSign * Math.sign(lineValue * dualValue);
+      return dualVector.map((value) => orientation * value);
+    }
+  }
+  return null;
+}
+
+function vectorMatrixProduct(vector, matrix) {
+  return matrix[0].map((_, column) => (
+    vector[0] * matrix[0][column]
+      + vector[1] * matrix[1][column]
+      + vector[2] * matrix[2][column]
+  ));
+}
+
+function crossProduct3(left, right) {
+  return [
+    left[1] * right[2] - left[2] * right[1],
+    left[2] * right[0] - left[0] * right[2],
+    left[0] * right[1] - left[1] * right[0],
+  ];
+}
+
+function canvasToBarycentric(point) {
+  const [first, second, third] = simplexTriangle();
+  const b = (first.y - point.y) / (first.y - second.y);
+  const c = (point.x - first.x - b * (second.x - first.x)) / (third.x - first.x);
+  return [1 - b - c, b, c];
+}
+
+function renderSeparatingOverlays() {
+  if (!separatingBackgroundLayer || !separatingForegroundLayer) {
+    return;
+  }
+  separatingBackgroundLayer.replaceChildren();
+  separatingForegroundLayer.replaceChildren();
+  if (!separatingLineEnabled) {
+    return;
+  }
+  ensureSeparatingLine();
+  drawSeparatingRegionHighlight();
+  drawSeparatingLineShade();
+  drawSeparatingLineControls();
+}
+
+function drawSeparatingRegionHighlight() {
+  const highlight = separatingLine.regionHighlight;
+  if (!highlight || highlight.selectionSignature !== selectedRootSignature() || !currentConeData) {
+    return;
+  }
+  if (!arrangementViewEnabled && !pointInPolygon(highlight.point, currentConeData.points)) {
+    return;
+  }
+  let polygon = arrangementViewEnabled
+    ? canvasRectangle()
+    : currentConeData.points.map((point) => ({ ...point }));
+  const selected = new Set(selectedRootIndices);
+  for (const index of visibleRootIndices()) {
+    const root = currentRoots[index];
+    const desiredSign = selected.has(index) ? highlight.dualSign : -highlight.dualSign;
+    polygon = clipPolygonToHalfPlane(
+      polygon,
+      (point) => desiredSign * dualValueAtCanvasPoint(root, point),
+    );
+    if (polygon.length < 3) {
+      return;
+    }
+  }
+  separatingBackgroundLayer.append(
+    svgElement("polygon", {
+      points: polygon.map((point) => `${point.x},${point.y}`).join(" "),
+      class: "separating-region-highlight",
+    }),
+  );
+}
+
+function drawSeparatingLineShade() {
+  const polygon = clipPolygonToHalfPlane(
+    canvasRectangle(),
+    (point) => separatingLine.halfspaceSign
+      * lineSignedValue(separatingLine.first, separatingLine.second, point),
+  );
+  if (polygon.length < 3) {
+    return;
+  }
+  separatingBackgroundLayer.append(
+    svgElement("polygon", {
+      points: polygon.map((point) => `${point.x},${point.y}`).join(" "),
+      class: "separating-line-shade",
+    }),
+  );
+}
+
+function drawSeparatingLineControls() {
+  const line = extendedLineThroughPoints(separatingLine.first, separatingLine.second, 720, 640);
+  if (line) {
+    separatingForegroundLayer.append(
+      svgElement("line", {
+        x1: line.x1,
+        y1: line.y1,
+        x2: line.x2,
+        y2: line.y2,
+        class: "separating-line",
+      }),
+    );
+  }
+  for (const [handle, point, label] of [
+    ["first", separatingLine.first, "Drag the first separating-line point"],
+    ["second", separatingLine.second, "Drag the second separating-line point"],
+  ]) {
+    const circle = svgElement("circle", {
+      cx: point.x,
+      cy: point.y,
+      r: 10 / plotView.scale,
+      class: "separating-handle",
+      role: "button",
+      tabindex: "0",
+      "aria-label": `${label}; use arrow keys for small adjustments`,
+    });
+    circle.addEventListener("pointerdown", (event) => beginSeparatingHandleDrag(event, handle));
+    circle.addEventListener("keydown", (event) => nudgeSeparatingHandle(event, handle));
+    separatingForegroundLayer.append(circle);
+  }
+}
+
+function canvasRectangle() {
+  return [
+    { x: 0, y: 0 },
+    { x: 720, y: 0 },
+    { x: 720, y: 640 },
+    { x: 0, y: 640 },
+  ];
+}
+
+function clipPolygonToHalfPlane(polygon, valueAtPoint) {
+  if (!polygon.length) {
+    return [];
+  }
+  const clipped = [];
+  let previous = polygon[polygon.length - 1];
+  let previousValue = valueAtPoint(previous);
+  for (const current of polygon) {
+    const currentValue = valueAtPoint(current);
+    const previousInside = previousValue >= -1e-9;
+    const currentInside = currentValue >= -1e-9;
+    if (previousInside !== currentInside) {
+      const t = previousValue / (previousValue - currentValue);
+      clipped.push(interpolatePoint(previous, current, t));
+    }
+    if (currentInside) {
+      clipped.push(current);
+    }
+    previous = current;
+    previousValue = currentValue;
+  }
+  return clipped;
+}
+
+function dualValueAtCanvasPoint(root, point) {
+  return quadraticPair(
+    root.barycentric,
+    currentConeData.bilinear,
+    canvasToBarycentric(point),
+  );
+}
+
+function pointInPolygon(point, polygon) {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i, i += 1) {
+    const first = polygon[i];
+    const second = polygon[j];
+    const crosses = (first.y > point.y) !== (second.y > point.y);
+    if (crosses && point.x < (second.x - first.x) * (point.y - first.y) / (second.y - first.y) + first.x) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
+function beginSeparatingHandleDrag(event, handle) {
+  if (!separatingLineEnabled || (event.pointerType === "mouse" && event.button !== 0)) {
+    return;
+  }
+  event.preventDefault();
+  event.stopPropagation();
+  separatingLine.dragPointerId = event.pointerId;
+  separatingLine.dragHandle = handle;
+  plotView.pointerDown = false;
+  plotView.dragging = false;
+  plotView.activePointers.clear();
+  nodes.plot.classList.remove("is-dragging");
+  nodes.plot.setPointerCapture(event.pointerId);
+}
+
+function moveSeparatingHandle(event) {
+  if (!separatingLine.dragHandle) {
+    return;
+  }
+  event.preventDefault();
+  const point = plotPointFromClient(event.clientX, event.clientY);
+  const other = separatingLine.dragHandle === "first" ? separatingLine.second : separatingLine.first;
+  if (Math.hypot(point.x - other.x, point.y - other.y) < 16 / plotView.scale) {
+    return;
+  }
+  separatingLine[separatingLine.dragHandle] = point;
+  updateShadedSideStatus();
+  renderSeparatingOverlays();
+}
+
+function endSeparatingHandleDrag(event) {
+  separatingLine.dragPointerId = null;
+  separatingLine.dragHandle = null;
+  if (nodes.plot.hasPointerCapture(event.pointerId)) {
+    nodes.plot.releasePointerCapture(event.pointerId);
+  }
+}
+
+function nudgeSeparatingHandle(event, handle) {
+  const directions = {
+    ArrowLeft: { x: -1, y: 0 },
+    ArrowRight: { x: 1, y: 0 },
+    ArrowUp: { x: 0, y: -1 },
+    ArrowDown: { x: 0, y: 1 },
+  };
+  const direction = directions[event.key];
+  if (!direction) {
+    return;
+  }
+  event.preventDefault();
+  const step = (event.shiftKey ? 20 : 5) / plotView.scale;
+  const point = separatingLine[handle];
+  const other = handle === "first" ? separatingLine.second : separatingLine.first;
+  const next = {
+    x: clamp(point.x + direction.x * step, 0, 720),
+    y: clamp(point.y + direction.y * step, 0, 640),
+  };
+  if (Math.hypot(next.x - other.x, next.y - other.y) < 16 / plotView.scale) {
+    return;
+  }
+  separatingLine[handle] = next;
+  updateShadedSideStatus();
+  renderSeparatingOverlays();
+}
+
+function plotPointFromClient(clientX, clientY) {
+  const point = clientToSvgPoint(clientX, clientY);
+  return {
+    x: clamp((point.x - plotView.tx) / plotView.scale, 0, 720),
+    y: clamp((point.y - plotView.ty) / plotView.scale, 0, 640),
+  };
+}
+
+function updateSeparatingHandleScreenSize() {
+  if (!separatingForegroundLayer) {
+    return;
+  }
+  for (const handle of separatingForegroundLayer.querySelectorAll(".separating-handle")) {
+    handle.setAttribute("r", String(10 / plotView.scale));
+  }
 }
 
 function refreshLineSelectionVisuals() {
@@ -1535,19 +2268,20 @@ function refreshLineSelectionVisuals() {
     const second = currentRoots[secondIndex];
     if (first && second && isRootVisible(first) && isRootVisible(second) && plotLayer) {
       const line = extendedLineThroughPoints(first.point, second.point, 720, 640);
-      if (!line) {
-        return;
+      if (line) {
+        currentLineElement = svgElement("line", {
+          x1: line.x1,
+          y1: line.y1,
+          x2: line.x2,
+          y2: line.y2,
+          class: "selection-line",
+        });
+        plotLayer.insertBefore(currentLineElement, plotLayer.firstChild);
       }
-      currentLineElement = svgElement("line", {
-        x1: line.x1,
-        y1: line.y1,
-        x2: line.x2,
-        y2: line.y2,
-        class: "selection-line",
-      });
-      plotLayer.insertBefore(currentLineElement, plotLayer.firstChild);
     }
   }
+
+  renderSeparatingOverlays();
 }
 
 function extendedLineThroughPoints(first, second, width, height) {
@@ -1661,7 +2395,7 @@ function isotropicConeData(cartan) {
     points.slice(1).map((point) => `L ${point.x} ${point.y}`).join(" ") +
     " Z";
 
-  return { path, bilinear, reduced };
+  return { path, points, bilinear, reduced };
 }
 
 function symmetrizerForCartan(cartan) {

@@ -123,14 +123,24 @@ li + li {
 
         <div class="plot-mode-row">
           <label class="view-toggle" for="select-rank-2-toggle">
-            <input id="select-rank-2-toggle" type="checkbox" checked>
+            <input id="select-rank-2-toggle" type="checkbox">
             <span>Select Rank 2</span>
           </label>
-          <label class="view-toggle" for="arrangement-view-toggle">
+          <label id="arrangement-view-toggle-wrap" class="view-toggle" for="arrangement-view-toggle">
             <input id="arrangement-view-toggle" type="checkbox">
             <span>Arrangement View</span>
           </label>
+          <label class="view-toggle" for="separating-line-toggle">
+            <input id="separating-line-toggle" type="checkbox">
+            <span>Separating Line</span>
+          </label>
+          <div id="separating-line-actions" class="separating-line-actions" hidden>
+            <button id="flip-separating-side-button" class="secondary-button" type="button">Flip Shaded Side</button>
+            <button id="separated-roots-button" class="secondary-button" type="button">Select shaded roots</button>
+            <button id="find-separating-line-button" class="secondary-button" type="button">Find separating line</button>
+          </div>
         </div>
+        <p id="separating-line-status" class="helper-text separating-line-status" aria-live="polite"></p>
 
         <div class="viewer-frame">
           <svg id="plot" viewBox="0 0 720 640" aria-label="Root system plot"></svg>

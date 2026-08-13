@@ -283,7 +283,7 @@ button:hover {
 .viewer {
   padding: 20px;
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto minmax(0, 1fr);
   gap: 16px;
   height: calc(100vh - 40px);
   max-height: calc(100vh - 40px);
@@ -312,6 +312,48 @@ button:hover {
   flex-wrap: wrap;
 }
 
+.shard-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.snake-mode-feedback-stack {
+  display: grid;
+  gap: 8px;
+  min-height: 0;
+}
+
+.snake-mode-feedback-stack .shard-actions-row {
+  margin-top: 0;
+}
+
+.snake-mode-feedback-stack .separating-line-status {
+  display: block;
+  width: 100%;
+}
+
+.shard-actions-row[hidden] {
+  display: none;
+}
+
+.shard-mode-status {
+  flex: 1 1 220px;
+}
+
+.separating-line-actions {
+  display: flex;
+  flex-basis: 100%;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.separating-line-actions[hidden] {
+  display: none;
+}
+
 .view-toggle {
   display: inline-flex;
   align-items: center;
@@ -325,6 +367,10 @@ button:hover {
   font-weight: 700;
 }
 
+.view-toggle[hidden] {
+  display: none !important;
+}
+
 .view-toggle input {
   appearance: auto;
   margin: 0;
@@ -333,6 +379,68 @@ button:hover {
 
 .view-toggle input:disabled + span {
   opacity: 0.45;
+}
+
+.shard-halfspace-shade {
+  fill: rgba(33, 122, 116, 0.13);
+  pointer-events: none;
+}
+
+.shard-sector {
+  fill: rgba(255, 248, 225, 0.9);
+  stroke: #356b67;
+  stroke-width: 1.4;
+  cursor: crosshair;
+  vector-effect: non-scaling-stroke;
+}
+
+.shard-sector:hover,
+.shard-sector:focus,
+.shard-sector.selected {
+  fill: rgba(224, 169, 55, 0.9);
+  stroke: #7a4318;
+  outline: none;
+}
+
+.shard-sector-full {
+  stroke: rgba(255, 248, 225, 0.94);
+}
+
+.shard-sector-full:hover,
+.shard-sector-full:focus,
+.shard-sector-full.selected {
+  stroke: rgba(224, 169, 55, 0.95);
+}
+
+.shard-sector-divider {
+  stroke: #6f4e37;
+  stroke-width: 1.5;
+  pointer-events: none;
+  vector-effect: non-scaling-stroke;
+}
+
+.shard-highlight-underlay,
+.shard-highlight {
+  pointer-events: none;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.shard-highlight-underlay {
+  stroke: rgba(18, 45, 43, 0.92);
+  stroke-width: 8;
+}
+
+.shard-highlight {
+  stroke-width: 3.5;
+}
+
+.shard-highlight-shard {
+  stroke: #ffe067;
+}
+
+.shard-highlight-negative {
+  stroke: #54d8d1;
 }
 
 .pill {
@@ -545,6 +653,44 @@ button:hover {
   stroke-width: 3;
   vector-effect: non-scaling-stroke;
   pointer-events: none;
+}
+
+.separating-region-highlight {
+  fill: rgba(58, 98, 183, 0.2);
+  stroke: rgba(47, 79, 157, 0.82);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.separating-line-shade {
+  fill: rgba(217, 164, 65, 0.22);
+  pointer-events: none;
+}
+
+.separating-line {
+  stroke: #9b6318;
+  stroke-width: 3;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.separating-handle {
+  fill: #d9a441;
+  stroke: #6b4b0b;
+  stroke-width: 2.5;
+  vector-effect: non-scaling-stroke;
+  cursor: grab;
+  touch-action: none;
+}
+
+.separating-handle:active {
+  cursor: grabbing;
+}
+
+.separating-line-status {
+  min-height: 1.35em;
+  margin: -2px 0 0;
 }
 
 .dot.is-hidden,
