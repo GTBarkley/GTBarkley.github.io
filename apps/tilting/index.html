@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Torsion classes</title><meta name="description" content="An offline laboratory for quiver representations, two-term simple-minded mutation, and stability chambers."><style>:root{font-family:Inter,Segoe UI,Arial,sans-serif;color:#182d43;background:#eaf0f5;font-size:16px;--line:#d7e1e9;--teal:#087e8b;--red:#c66345;--blue:#385cc7}*{box-sizing:border-box}body{margin:0}header{height:70px;background:#112a40;color:white;display:flex;align-items:center;justify-content:space-between;padding:0 25px;gap:18px}header strong{font-size:23px;letter-spacing:-.6px}.subtitle{font-size:14px;margin-left:22px;color:#b8cadb}.badge{font-size:13px;border:1px solid #496174;padding:7px 12px;border-radius:20px;white-space:nowrap}main{display:grid;grid-template-columns:310px minmax(360px,1fr) 292px;min-height:calc(100vh - 70px)}aside{background:#fff;padding:22px 20px;overflow:auto;max-height:calc(100vh - 70px)}.editor{border-right:1px solid var(--line)}.inspector{border-left:1px solid var(--line)}h2{font-size:17px;margin:0 0 20px;font-weight:650}label{font-size:14px;display:block;margin:12px 0 6px}button,input,select,textarea{font:inherit;font-size:14px;border:1px solid #bfcdd9;border-radius:6px;color:inherit;background:white;padding:9px;max-width:100%}button{cursor:pointer;font-weight:550;transition:background .12s}button:hover{background:#e7f0f5}button:disabled{opacity:.48;cursor:default}button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:3px solid #92cbd3;outline-offset:2px}select,textarea,label>input,label>select{width:100%}textarea{resize:vertical;font-family:Consolas,monospace;line-height:1.6}.primary{background:var(--teal);color:white;border-color:var(--teal);width:100%;margin-top:18px;padding:12px}.primary:hover{background:#086a74}.hint{font-size:13px;line-height:1.5;color:#5c7081;margin:8px 0 12px}.add-arrow,.twocol{display:grid;grid-template-columns:1fr 1fr;gap:10px}.add-arrow{grid-template-columns:1fr 1fr auto;align-items:end}.add-arrow label{margin:0}.add-arrow button{height:37px}.arrow-list{max-height:165px;overflow:auto;margin:12px 0}.arrow-row{display:flex;align-items:center;gap:8px;margin:5px 0;font-size:14px}.arrow-row input{width:65px;padding:5px 8px;font-family:Consolas,monospace}.arrow-row button{margin-left:auto;border:0;padding:3px 9px;color:#a54939}#quiver{width:100%;touch-action:none;background:#f4f8fa;border-radius:8px;margin-top:14px}#quiver .vertex{cursor:grab}details{border-top:1px solid var(--line);margin-top:18px;padding-top:12px;font-size:14px;line-height:1.55}summary{cursor:pointer;font-weight:550}.workspace{display:flex;flex-direction:column;min-width:0;height:calc(100vh - 70px);min-height:580px}.viewbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:15px 18px;background:#f8fafc;border-bottom:1px solid var(--line)}.tabs{display:flex;gap:3px;background:#e5edf3;padding:3px;border-radius:8px}.tabs button{border:0;background:transparent;white-space:nowrap}.tabs [aria-selected=true]{background:white;box-shadow:0 1px 4px #152f4820;color:var(--teal)}#projection{width:auto;max-width:220px}.viewbar>button{margin-left:auto}.canvas-wrap{position:relative;flex:1;min-height:350px;overflow:hidden;background:radial-gradient(ellipse at 45% 35%,#fff,#eef4f8)}canvas{width:100%;height:100%;display:block;touch-action:none}.viewhint{position:absolute;bottom:50px;left:20px;font-size:13px;color:#536b80;pointer-events:none}.legend{position:absolute;bottom:20px;left:20px;display:flex;align-items:center;gap:7px;font-size:12px;pointer-events:none}.swatch{display:inline-block;width:10px;height:10px;border-radius:50%;margin-left:7px}.up{background:var(--teal)}.down{background:var(--red)}.selected{background:var(--blue)}#emptyState{position:absolute;inset:0;display:grid;place-content:center;color:#64798b;pointer-events:none;font-size:15px}.statusbar{display:flex;justify-content:space-between;gap:15px;padding:13px 20px;font-size:13px;background:#f8fafc;border-top:1px solid var(--line)}#status{overflow-wrap:anywhere}.notice{font-size:14px;line-height:1.5;padding:12px 20px;background:#fff0d4;color:#79541e;max-height:140px;overflow:auto}#error{color:#ad352b;font-size:14px;line-height:1.5;overflow-wrap:anywhere}.label-card{border:1px solid var(--line);border-left:4px solid var(--teal);border-radius:8px;margin:12px 0;padding:12px}.label-card.downward{border-left-color:var(--red)}.label-card.active{background:#f0f6ff;border-color:#385cc7}.label-top{display:flex;justify-content:space-between;align-items:center;font-size:14px}.direction{font-size:12px;font-weight:600;color:var(--teal)}.downward .direction{color:var(--red)}.dim{font-size:20px;font-family:Cambria,Georgia,serif;margin:8px 0}.label-actions{display:flex;gap:6px}.label-actions button{font-size:13px;padding:6px 8px}.label-actions button:first-child{flex:1}.matrix{font-family:Consolas,monospace;white-space:pre;overflow:auto;background:#f2f6f9;padding:9px;border-radius:5px;font-size:13px}.arrow-matrix{margin-top:12px;font-size:14px}#brickDetail h3{font-size:15px;margin:20px 0 8px}#geometry{font-size:13px;overflow:auto}#export{width:100%;margin-top:20px}.help p{font-size:13px;color:#526779}.busy #compute{opacity:.6}#stop{width:100%;margin-top:8px;color:#9b422d}code{font-family:Consolas,monospace}[hidden]{display:none!important}@media(min-width:1500px){main{grid-template-columns:330px minmax(400px,1fr) 320px}}@media(max-width:1050px){main{grid-template-columns:275px minmax(350px,1fr)}.inspector{grid-column:1/-1;max-height:none;border-top:1px solid var(--line);display:block}.inspector #labels{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.workspace{height:740px}.editor{max-height:740px}.subtitle{display:none}}@media(max-width:660px){header{height:auto;min-height:64px;padding:14px}.badge{font-size:12px}header strong{font-size:20px}main{display:flex;flex-direction:column}.editor{max-height:none}.workspace{height:650px;min-height:500px}.inspector #labels{display:block}.viewbar{padding:10px;gap:7px}#projection{max-width:165px}.statusbar{flex-wrap:wrap}.canvas-wrap{min-height:400px}}
+
+.mutation-issue{font-size:13px;line-height:1.45;color:#8a4826;background:#fff0df;padding:8px;border-radius:4px;overflow-wrap:anywhere}
+
+.share-controls{margin-top:20px}.share-controls button{width:100%}
+</style></head>
+<body>
+<header><div><strong>Torsion classes</strong></div></header>
+<main>
+<aside class="editor">
+<h2>Quiver &amp; relations</h2>
+<label for="preset">Example</label><select id="preset"><option value="a3">A₃ · 1 → 2 → 3</option><option value="preA3">Preprojective A₃</option><option value="affine">Affine preprojective Ã₂</option><option value="markov">Markov quiver Jacobian algebra</option><option value="preMarkov">Preprojective Markov</option><option value="kronecker">Kronecker + isolated vertex</option><option value="loop">Loop x³ = 0</option><option value="paths">Parallel paths · ab + cd</option><option value="empty">No arrows</option></select>
+<svg id="quiver" viewBox="0 0 300 200" aria-label="Quiver editor. Drag a vertex to move it; shift-click two vertices to add an arrow."><defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker></defs><path d="M64 138L143 48M163 48L242 138" fill="none" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/><g fill="#fff" stroke="#147c85" stroke-width="2"><circle cx="52" cy="153" r="20"/><circle cx="153" cy="30" r="20"/><circle cx="253" cy="153" r="20"/></g><g text-anchor="middle" fill="#163048" font-size="16"><text x="52" y="159">1</text><text x="153" y="36">2</text><text x="253" y="159">3</text><text x="85" y="82">a</text><text x="221" y="82">b</text></g></svg>
+<p class="hint">Drag vertices to arrange. Shift-click source, then target to add an arrow.</p>
+<div class="add-arrow"><label>From<select id="from"><option>1</option><option>2</option><option>3</option></select></label><label>To<select id="to"><option>2</option><option>1</option><option>3</option></select></label><button id="addArrow" title="Add arrow">＋ Arrow</button></div>
+<div id="arrows" class="arrow-list"></div>
+<label for="relations">Relations = 0 <span class="hint">one per line</span></label><textarea id="relations" rows="4" spellcheck="false" placeholder="a*b + c*d"></textarea>
+<p class="hint">Paths read left to right. Use <code>a*b</code> or <code>ab</code> for single-letter arrows. Rational coefficients allowed.</p>
+
+<div class="twocol"><label>Distance<input id="radius" type="number" min="0" max="12" value="4"></label><label>Base region<select id="base"><option value="-1">All upwards · zero</option><option value="1">All downwards · full</option></select></label></div>
+<details><summary>Computation limits</summary><p class="hint">Start with the defaults. If a mutation hits a limit, its label tells you which one. You can raise that limit and compute again; larger limits may need more time or memory.</p><div class="twocol"><label>Max module dimension<input id="maxdim" type="number" min="3" max="256" value="64"></label><label>Time limit (seconds)<input id="seconds" type="number" min="5" max="600" value="60"></label></div><div class="twocol"><label>Stored matrix entries (millions)<input id="matrixEntries" type="number" min="0.1" max="8" step="0.1" value="2"></label><label>Extension rounds<input id="maxrounds" type="number" min="1" max="256" value="32"></label></div><p class="hint"><strong>Max module dimension</strong> limits the sum of the three numbers in a module’s dimension vector. For example, (2, 3, 1) has total dimension 6.</p><p class="hint"><strong>Stored matrix entries</strong> limits the size of the linear-algebra calculations. Raising it allows larger calculations, but uses more memory.</p><p class="hint"><strong>Extension rounds</strong> limits how many times a single mutation can enlarge a module while searching for its result. Some mutations need several rounds; others may never finish.</p><p class="hint">If one mutation hits a size or round limit, the app skips that direction and tries the others. The time limit and <strong>Stop computation</strong> end the whole search and keep the results found so far.</p><p class="hint"><strong>Resource limit</strong> means the app could not finish that calculation. It does not mean the mutation is mathematically impossible.</p><details><summary>Additional safeguards</summary><p class="hint">The app also limits each search to 1,200 chambers and checks for very large exact coefficients during elimination (over 2,500 digits in a pivot row). For sparse matrices, the storage limit counts nonzero entries; for dense matrices, it counts all entries. Entries created during calculation count too.</p></details></details>
+
+<button id="compute" class="primary">Compute chambers</button><button id="stop" hidden>Stop computation</button>
+<p id="error" role="alert"></p>
+</aside>
+<section class="workspace"><div class="viewbar"><div class="tabs" role="tablist" aria-label="View"><button id="fanTab" role="tab" aria-selected="true">Stability fan</button><button id="graphTab" role="tab" aria-selected="false">Mutation graph</button></div><select id="projection" aria-label="Fan projection"><option value="sphere">Sphere</option><option value="slice">Affine slice θ₁ + θ₂ + θ₃ = −1</option></select><button id="resetView">Reset view</button></div>
+<div class="canvas-wrap"><canvas id="scene" aria-label="Interactive stability fan. Select a chamber or use the chamber selector." tabindex="0"></canvas><div id="emptyState">Choose a quiver and compute its chambers.</div><div class="viewhint" id="viewhint">Drag to rotate · scroll to zoom · click a chamber</div><div class="legend"><span class="swatch up"></span> Upwards <span class="swatch down"></span> Downwards <span class="swatch selected"></span> Selected chamber</div></div>
+<div class="statusbar"><span id="status" role="status">Ready</span><span id="counts">0 chambers · 0 edges</span></div><div id="notice" class="notice" hidden></div>
+</section>
+<aside class="inspector"><h2>Selected chamber</h2><label for="chamber">Chamber</label><select id="chamber"><option>No computation yet</option></select><p id="chamberInfo" class="hint">The three labels correspond to its three possible mutations.</p><div id="labels"></div><div id="brickDetail"></div><details><summary>Chamber inequalities &amp; rays</summary><div id="geometry"></div></details><button id="export" disabled>Export exact computation</button><details class="help"><summary>Reading the views &amp; conventions</summary>
+<p><strong>Chambers and mutations.</strong> Each graph node is a chamber. An edge joins two chambers related by one mutation. The fan shows the corresponding regions in stability space. Click a chamber in either view to see its labels.</p>
+<p><strong>Distance.</strong> This is the number of mutation steps from your chosen base region, counting steps in either direction. For example, distance 2 asks for chambers reachable in at most two steps. If some calculations are unfinished, a shorter route to a displayed chamber may still be missing.</p>
+<p><strong>Brick labels.</strong> Each chamber has three labels, one for each mutation direction. The tuple (d₁, d₂, d₃) gives the brick’s vector-space dimension at each quiver vertex. Different bricks can have the same tuple: choose <strong>Inspect</strong> to see the arrow matrices that distinguish them.</p>
+<p><strong>Upwards and downwards.</strong> These describe the mutation direction, not the label’s position on screen. Graph arrows point in the upwards direction. The base selector starts you with all three labels upwards or all three downwards.</p>
+<p><strong>Reading the fan.</strong> The sphere shows where each chamber meets a sphere centered at the origin. Rotate it to see the other side. The slice view cuts the chambers with a plane; it is available when all displayed chamber rays meet that plane in their positive direction.</p>
+<details><summary>Mathematical notation and scope</summary>
+<p>Write a two-term simple-minded collection as D ∪ U[1], where D contains the downwards labels and U contains the upwards labels before shifting. Form C with the dimension vectors of D as positive columns and those of U as negative columns.</p>
+<p>A stability parameter θ lies in the displayed cone when Cᵀθ ≥ 0. The columns of C⁻ᵀ are its ray directions. These inequalities and rays appear above under <strong>Chamber inequalities &amp; rays</strong>.</p>
+<p>The computation starts from the three vertex simple modules and explores their finite extensions. These are nilpotent representations: all sufficiently long paths act as zero. The algebra itself may be infinite-dimensional; the app does not impose a fixed maximum path length or require admissible relations.</p>
+</details></details><div class="share-controls"><button id="copyLink" type="button">Copy link to this quiver</button></div><p id="shareStatus" class="hint" role="status"></p><textarea id="shareLink" readonly hidden rows="3" aria-label="Link to current quiver and relations"></textarea></aside>
+</main>
+<script id="worker-source" type="text/plain">/* Exact rational quiver representations. Shared by the offline worker and Node tests. */
+'use strict';
+const TorsionEngine = (()=>{
+const Z=[0n,1n], O=[1n,1n];
+const gcd=(a,b)=>{a=a<0n?-a:a;while(b){const c=a%b;a=b;b=c;}return a;};
+function q(n,d=1n){n=BigInt(n);d=BigInt(d);if(!d)throw Error('Division by zero');if(!n)return Z;if(d<0n){n=-n;d=-d;}if(d===1n)return [n,d];const g=gcd(n,d);return [n/g,d/g];}
+const plus=(a,b)=>!a[0]?b:!b[0]?a:a[1]===b[1]?q(a[0]+b[0],a[1]):q(a[0]*b[1]+b[0]*a[1],a[1]*b[1]);
+const neg=a=>a[0]?[-a[0],a[1]]:Z;
+const minus=(a,b)=>plus(a,neg(b));
+const times=(a,b)=>!a[0]||!b[0]?Z:q(a[0]*b[0],a[1]*b[1]);
+const divide=(a,b)=>q(a[0]*b[1],a[1]*b[0]);
+const str=a=>a[1]===1n?String(a[0]):`${a[0]}/${a[1]}`;
+const read=s=>{const p=String(s).split('/');if(!/^[+-]?\d+$/.test(p[0])||p.length>2||(p.length===2&&!/^\d+$/.test(p[1])))throw Error(`Invalid rational coefficient: ${s}`);return q(p[0],p[1]??1);};
+let budget=null;
+class Limit extends Error {constructor(message,scope='edge'){super(message);this.kind='limit';this.scope=scope;}}
+function tick(){if(budget&&Date.now()>budget.until)throw new Limit('Time limit reached. The displayed neighborhood is incomplete.','search');}
+function mat(r,c,a){tick();const cap=budget?.matrixEntries??2000000;if(r*c>cap)throw new Limit(`Linear system size limit: ${r} × ${c} = ${r*c} entries exceeds ${cap}.`);return {r,c,a:a||Array(r*c).fill(Z)};}
+function sparse(r,c){tick();return {r,c,rows:Array.from({length:r},()=>new Map()),nnz:0};}
+function system(r,c){return budget?.solver!=='dense'&&r*c>=4096?sparse(r,c):mat(r,c);}
+const at=(A,i,j)=>A.rows?(A.rows[i].get(j)||Z):A.a[i*A.c+j];
+const put=(A,i,j,x)=>{if(!A.rows){A.a[i*A.c+j]=x;return;}const row=A.rows[i],had=row.has(j);if(x[0]){row.set(j,x);if(!had)A.nnz++;}else if(had){row.delete(j);A.nnz--;}if(A.nnz>(budget?.matrixEntries??2000000))throw new Limit(`Sparse linear system storage limit: ${A.nnz} nonzero entries.`);};
+const id=n=>{let A=mat(n,n);for(let i=0;i<n;i++)put(A,i,i,O);return A;};
+const trans=A=>{if(!A.rows)return mat(A.c,A.r,Array.from({length:A.r*A.c},(_,k)=>at(A,k%A.r,Math.floor(k/A.r))));const B=sparse(A.c,A.r);A.rows.forEach((row,i)=>row.forEach((v,j)=>put(B,j,i,v)));return B;};
+function mul(A,B){if(A.c!==B.r)throw Error('Matrix shape mismatch');const C=mat(A.r,B.c);for(let i=0;i<A.r;i++)for(let k=0;k<A.c;k++){let x=at(A,i,k);if(x[0])for(let j=0;j<B.c;j++)if(at(B,k,j)[0])put(C,i,j,plus(at(C,i,j),times(x,at(B,k,j))));}return C;}
+const sum=(A,B)=>mat(A.r,A.c,A.a.map((x,i)=>plus(x,B.a[i])));
+const scale=(A,c)=>{if(!A.rows)return mat(A.r,A.c,A.a.map(x=>times(x,c)));const B=sparse(A.r,A.c);A.rows.forEach((row,i)=>row.forEach((v,j)=>put(B,i,j,times(v,c))));return B;};
+const col=(A,j)=>Array.from({length:A.r},(_,i)=>at(A,i,j));
+const cols=(vs,r)=>mat(r,vs.length,Array.from({length:r*vs.length},(_,k)=>vs[k%vs.length][Math.floor(k/vs.length)]));
+const aug=(A,B)=>{if(A.r!==B.r)throw Error('Augmentation mismatch');if(A.rows||B.rows){const C=sparse(A.r,A.c+B.c);for(const [M,off] of [[A,0],[B,A.c]])for(let i=0;i<M.r;i++){if(M.rows)M.rows[i].forEach((v,j)=>put(C,i,j+off,v));else for(let j=0;j<M.c;j++)if(at(M,i,j)[0])put(C,i,j+off,at(M,i,j));}return C;}return mat(A.r,A.c+B.c,Array.from({length:A.r*(A.c+B.c)},(_,k)=>{const i=Math.floor(k/(A.c+B.c)),j=k%(A.c+B.c);return j<A.c?at(A,i,j):at(B,i,j-A.c);}));};
+function sparseRref(A){
+ const B=sparse(A.r,A.c);for(let i=0;i<A.r;i++){if(A.rows)A.rows[i].forEach((v,j)=>put(B,i,j,v));else for(let j=0;j<A.c;j++)if(at(A,i,j)[0])put(B,i,j,at(A,i,j));}
+ const rows=B.rows,piv=[];let h=0;
+ for(let j=0;j<A.c&&h<A.r;j++){
+  tick();let k=-1;for(let i=h;i<A.r;i++)if(rows[i].has(j)&&(k<0||rows[i].size<rows[k].size))k=i;
+  if(k<0)continue;[rows[h],rows[k]]=[rows[k],rows[h]];const p=rows[h].get(j);
+  for(const [c,v] of rows[h])rows[h].set(c,divide(v,p));
+  for(let i=0;i<A.r;i++)if(i!==h&&rows[i].has(j)){const x=rows[i].get(j);for(const [c,v] of rows[h])put(B,i,c,minus(rows[i].get(c)||Z,times(x,v)));}
+  if([...rows[h].values()].some(x=>x[0].toString().length>2500))throw new Limit('Exact coefficient size limit reached.');piv.push(j);h++;
+ }
+ return {m:B,piv};
+}
+function rref(A){tick();if(A.rows||(budget?.solver!=='dense'&&A.r*A.c>=4096&&A.a.filter(x=>x[0]).length<A.r*A.c*.2))return sparseRref(A);let rows=Array.from({length:A.r},(_,i)=>A.a.slice(i*A.c,(i+1)*A.c)),piv=[],h=0;for(let j=0;j<A.c&&h<A.r;j++){tick();let k=h;while(k<A.r&&!rows[k][j][0])k++;if(k===A.r)continue;[rows[h],rows[k]]=[rows[k],rows[h]];const p=rows[h][j];for(let c=j;c<A.c;c++)rows[h][c]=divide(rows[h][c],p);for(let i=0;i<A.r;i++)if(i!==h&&rows[i][j][0]){let x=rows[i][j];for(let c=j;c<A.c;c++)rows[i][c]=minus(rows[i][c],times(x,rows[h][c]));}if(rows[h].some(x=>x[0].toString().length>2500))throw new Limit('Exact coefficient size limit reached.');piv.push(j);h++;}return {m:mat(A.r,A.c,rows.flat()),piv};}
+const rank=A=>rref(A).piv.length;
+function nullspace(A){const {m,piv}=rref(A),out=[];for(let j=0;j<A.c;j++)if(!piv.includes(j)){const v=Array(A.c).fill(Z);v[j]=O;piv.forEach((p,i)=>v[p]=neg(at(m,i,j)));out.push(v);}return out;}
+function solve(A,B){const {m,piv}=rref(aug(A,B));if(piv.some(p=>p>=A.c))throw Error('Inconsistent exact linear system');const X=mat(A.c,B.c);piv.forEach((p,i)=>{for(let j=0;j<B.c;j++)put(X,p,j,at(m,i,A.c+j));});return X;}
+const columnBasis=A=>{const {piv}=rref(A);return cols(piv.map(j=>col(A,j)),A.r);};
+function addBasis(basis,v){v=v.slice();for(const b of basis){if(v[b.p][0]){const c=v[b.p];v=v.map((x,i)=>minus(x,times(c,b.v[i])));}}const p=v.findIndex(x=>x[0]);if(p<0)return false;const d=v[p];v=v.map(x=>divide(x,d));basis.push({p,v});basis.sort((a,b)=>a.p-b.p);return true;}
+const flatten=ms=>ms.flatMap(m=>m.a);
+function unpack(v,shapes){let p=0;return shapes.map(([r,c])=>{const A=mat(r,c,v.slice(p,p+r*c));p+=r*c;return A;});}
+const serialized=A=>Array.from({length:A.r},(_,i)=>A.a.slice(i*A.c,(i+1)*A.c).map(str));
+
+function parseRelations(text,arrows){
+ const names=new Set(arrows.map(a=>a.name)),relations=[];
+ for(const [lineNo,line] of String(text).split(/[\n;]/).entries()){
+  let s=line.replace(/#.*$/,'').replace(/\s/g,'');if(!s)continue;
+  if(s.includes('=')){const parts=s.split('=');if(parts.length!==2||parts[1]!=='0')throw Error(`Relation ${lineNo+1}: write an expression, or expression = 0.`);s=parts[0];}
+  if(!s)throw Error(`Relation ${lineNo+1} is empty.`);
+  const pieces=s.match(/[+-]?[^+-]+/g);if(!pieces||pieces.join('')!==s)throw Error(`Relation ${lineNo+1}: invalid signs.`);
+  let terms=[];
+  for(let term of pieces){let sign=1;if(term[0]==='-'||term[0]==='+'){sign=term[0]==='-'?-1:1;term=term.slice(1);}let coeff=q(sign);const cm=term.match(/^(\d+(?:\/\d+)?)(?:\*)?/);if(cm){coeff=times(coeff,read(cm[1]));term=term.slice(cm[0].length);}
+   if(!term)throw Error(`Relation ${lineNo+1}: a term must contain a path; constant relations do not preserve the vertex simples.`);
+   let path=term.includes('*')?term.split('*'):names.has(term)?[term]:term.split('');
+   if(path.some(n=>!names.has(n)))throw Error(`Relation ${lineNo+1}: unknown arrow in “${term}”. Use * between multi-character names.`);
+   if(coeff[0])terms.push([str(coeff),path]);
+  }
+  if(terms.length)relations.push(terms);
+ }
+ return relations;
+}
+class Algebra{
+ constructor(arrows,relations=[]){this.arrows=arrows.map(a=>({...a}));this.n=3;this.names=new Map(arrows.map((a,i)=>[a.name,i]));if(this.names.size!==arrows.length)throw Error('Arrow names must be distinct.');if(arrows.some(a=>!/^[_A-Za-z][_A-Za-z0-9]*$/.test(a.name)||![0,1,2].includes(a.s)||![0,1,2].includes(a.t)))throw Error('Use named arrows between vertices 1, 2, and 3.');
+ this.relations=relations.map((terms,i)=>{let endpoints=null;let ts=terms.map(([c,p])=>{p=p.map(x=>{if(!this.names.has(x))throw Error(`Unknown arrow: ${x}`);return this.names.get(x);});if(!p.length)throw Error('Empty path not supported in relations.');for(let j=1;j<p.length;j++)if(arrows[p[j-1]].t!==arrows[p[j]].s)throw Error(`Relation ${i+1}: consecutive arrows do not compose.`);let ep=[arrows[p[0]].s,arrows[p[p.length-1]].t];if(endpoints&&ep.join()!==endpoints.join())throw Error(`Relation ${i+1}: terms must have the same source and target.`);endpoints=ep;return {c:read(c),p};});return {s:endpoints[0],t:endpoints[1],terms:ts};});}
+ opposite(){if(!this.op){this.op=new Algebra(this.arrows.map(a=>({...a,s:a.t,t:a.s})),this.relations.map(r=>r.terms.map(t=>[str(t.c),t.p.slice().reverse().map(i=>this.arrows[i].name)])));this.op.op=this;}return this.op;}
+ simple(i){return new Rep(this,[0,1,2].map(j=>+(i===j)));}
+}
+let serial=0;
+class Rep{
+ constructor(A,d,maps){this.A=A;this.d=d.slice();this.uid=serial++;if(d.some(x=>!Number.isInteger(x)||x<0))throw Error('Invalid module dimensions');this.maps=maps||A.arrows.map(a=>mat(d[a.t],d[a.s]));if(this.maps.length!==A.arrows.length)throw Error('Missing arrow matrices');this.maps.forEach((m,i)=>{let a=A.arrows[i];if(m.r!==d[a.t]||m.c!==d[a.s])throw Error('Invalid arrow matrix shape');});for(const r of A.relations){let v=mat(d[r.t],d[r.s]);for(const t of r.terms)v=sum(v,scale(this.path(t.p,r.s),t.c));if(v.a.some(x=>x[0]))throw Error('Constructed module violates an entered relation.');}}
+ path(p,s){let M=id(this.d[s]);for(const a of p)M=mul(this.maps[a],M);return M;}
+ dual(){if(!this.dualRep){this.dualRep=new Rep(this.A.opposite(),this.d,this.maps.map(trans));this.dualRep.dualRep=this;}return this.dualRep;}
+}
+class Pair{
+ constructor(X,Y){this.X=X;this.Y=Y;this.A=X.A;this.vs=X.d.map((d,i)=>[Y.d[i],d]);this.as=this.A.arrows.map(a=>[Y.d[a.t],X.d[a.s]]);let offset=shapes=>{let n=0;return shapes.map(([r,c])=>{let v=n;n+=r*c;return v;});};this.vo=offset(this.vs);this.ao=offset(this.as);this.n0=this.vs.reduce((n,[r,c])=>n+r*c,0);this.n1=this.as.reduce((n,[r,c])=>n+r*c,0);this.d0=system(this.n1,this.n0);
+ this.A.arrows.forEach((a,ai)=>{for(let i=0;i<Y.d[a.t];i++)for(let j=0;j<X.d[a.s];j++){const row=this.ao[ai]+i*X.d[a.s]+j;for(let k=0;k<Y.d[a.s];k++){const c=this.vo[a.s]+k*X.d[a.s]+j;put(this.d0,row,c,plus(at(this.d0,row,c),at(Y.maps[ai],i,k)));}for(let k=0;k<X.d[a.t];k++){const c=this.vo[a.t]+i*X.d[a.t]+k;put(this.d0,row,c,minus(at(this.d0,row,c),at(X.maps[ai],k,j)));}}});}
+ hom(){if(!this.h)this.h=nullspace(this.d0).map(v=>unpack(v,this.vs));return this.h;}
+ ext(){if(this.e)return this.e;const X=this.X,Y=this.Y;let n2=this.A.relations.reduce((n,r)=>n+Y.d[r.t]*X.d[r.s],0),d1=system(n2,this.n1),off=0;
+ for(const r of this.A.relations){for(const term of r.terms)for(let h=0;h<term.p.length;h++){let ai=term.p[h],a=this.A.arrows[ai],L=Y.path(term.p.slice(h+1),a.t),R=X.path(term.p.slice(0,h),r.s);for(let u=0;u<Y.d[r.t];u++)for(let v=0;v<X.d[r.s];v++)for(let i=0;i<Y.d[a.t];i++)if(at(L,u,i)[0])for(let j=0;j<X.d[a.s];j++)if(at(R,j,v)[0]){let row=off+u*X.d[r.s]+v,c=this.ao[ai]+i*X.d[a.s]+j;put(d1,row,c,plus(at(d1,row,c),times(term.c,times(at(L,u,i),at(R,j,v)))));}}off+=Y.d[r.t]*X.d[r.s];}
+ const basis=[];for(let j=0;j<this.n0;j++)addBasis(basis,col(this.d0,j));const result=[];for(const v of nullspace(d1))if(addBasis(basis,v))result.push(v);this.e=result;return this.e;}
+}
+function extend(S,T,classes){const k=classes.length,d=T.d.map((v,i)=>v+k*S.d[i]),zz=classes.map(z=>unpack(z,S.A.arrows.map(a=>[T.d[a.t],S.d[a.s]]))),maps=S.A.arrows.map((a,ai)=>{const m=mat(d[a.t],d[a.s]);for(let i=0;i<T.d[a.t];i++)for(let j=0;j<T.d[a.s];j++)put(m,i,j,at(T.maps[ai],i,j));for(let h=0;h<k;h++){let r=T.d[a.t]+h*S.d[a.t],c=T.d[a.s]+h*S.d[a.s];for(let i=0;i<T.d[a.t];i++)for(let j=0;j<S.d[a.s];j++)put(m,i,c+j,at(zz[h][ai],i,j));for(let i=0;i<S.d[a.t];i++)for(let j=0;j<S.d[a.s];j++)put(m,r+i,c+j,at(S.maps[ai],i,j));}return m;});return new Rep(S.A,d,maps);}
+class Engine{
+ constructor(options={}){this.options={maxdim:64,maxrounds:32,seconds:60,maxstates:1200,matrixEntries:2000000,...options};this.pairs=new Map();this.registry=[];this.buckets=new Map();this.interned=new Map();this.mutations=new Map();this.stats={extensionRounds:0,approximationRounds:0};}
+ pair(X,Y){if(X.A!==Y.A)throw Error('Different algebras');const key=`${X.uid}/${Y.uid}`;if(!this.pairs.has(key))this.pairs.set(key,new Pair(X,Y));return this.pairs.get(key);}
+ guard(d,r=0){tick();if(d.reduce((a,b)=>a+b,0)>this.options.maxdim)throw new Limit('Module dimension limit reached. The displayed neighborhood is incomplete.');if(r>this.options.maxrounds)throw new Limit('Extension-round limit reached; termination is not established for this edge.');}
+ universal(S,T){if(this.pair(S,T).hom().length)throw Error('Upwards labels are not Hom orthogonal');let M=T,round=0;while(true){const e=this.pair(S,M).ext();if(!e.length)return M;this.guard(M.d.map((d,i)=>d+e.length*S.d[i]),++round);M=extend(S,M,e);this.stats.extensionRounds++;if(!this.pair(S,S).ext().length)return M;}}
+ approx(S,T){const ST=this.pair(S,T),hom=ST.hom(),zero=new Rep(S.A,[0,0,0]);this.guard(S.d.map(d=>d*hom.length));let E=extend(S,zero,hom.map(()=>[])),f=T.d.map((d,i)=>cols(hom.flatMap(h=>Array.from({length:S.d[i]},(_,j)=>col(h[i],j))),d));if(!this.pair(S,S).ext().length)return {E,f};let rounds=0;
+ while(true){const SE=this.pair(S,E),reps=SE.ext(),pushed=reps.map(z=>{let blocks=unpack(z,SE.as);return flatten(S.A.arrows.map((a,i)=>mul(f[a.t],blocks[i])));}),P=cols(pushed,ST.n1),ker=nullspace(aug(P,scale(ST.d0,q(-1)))),basis=[],coeff=[];for(let v of ker){v=v.slice(0,reps.length);if(addBasis(basis,v))coeff.push(v);}if(!coeff.length)return {E,f};this.guard(E.d.map((d,i)=>d+coeff.length*S.d[i]),++rounds);let classes=coeff.map(v=>Array.from({length:SE.n1},(_,i)=>v.reduce((s,c,j)=>plus(s,times(c,reps[j][i])),Z))),lifts=coeff.map(v=>unpack(solve(ST.d0,mul(P,cols([v],v.length))).a,ST.vs));E=extend(S,E,classes);f=f.map((fi,i)=>aug(fi,cols(lifts.flatMap(h=>Array.from({length:S.d[i]},(_,j)=>col(h[i],j))),T.d[i])));this.stats.approximationRounds++;}}
+ kernel(X,f){let B=f.map(m=>cols(nullspace(m),m.c));return new Rep(X.A,B.map(m=>m.c),X.A.arrows.map((a,i)=>solve(B[a.t],mul(X.maps[i],B[a.s]))));}
+ cokernel(Y,f){let B=f.map(m=>trans(cols(nullspace(trans(m)),m.r)));return new Rep(Y.A,B.map(m=>m.r),Y.A.arrows.map((a,i)=>trans(solve(trans(B[a.s]),trans(mul(B[a.t],Y.maps[i]))))));}
+ opposite(S,T){const {E,f}=this.approx(S,T),r=f.map(rank),mono=r.every((r,i)=>r===E.d[i]),epi=r.every((r,i)=>r===T.d[i]);if(!mono&&!epi){const err=Error('Approximation has both kernel and cokernel: this mutation leaves the module-or-shift display.');err.kind='outside-two-term';throw err;}if(mono&&epi)throw Error('An isomorphism would remove a label');return mono?{sign:1,M:this.cokernel(T,f)}:{sign:-1,M:this.kernel(E,f)};}
+ up(labels,pivot){const S=labels[pivot].M;return labels.map(({sign,M:T},i)=>{if(i===pivot)return {sign:1,M:S};const key=`${S.uid}/${sign}/${T.uid}`;if(!this.mutations.has(key))this.mutations.set(key,sign<0?{sign:-1,M:this.universal(S,T)}:this.opposite(S,T));return this.mutations.get(key);});}
+ mutate(labels,pivot){return labels[pivot].sign<0?this.up(labels,pivot):this.up(labels.map(l=>({sign:-l.sign,M:l.M.dual()})),pivot).map(l=>({sign:-l.sign,M:l.M.dual()}));}
+ iso(X,Y){if(X.d.join()!==Y.d.join()||X.A!==Y.A)return false;const h=this.pair(X,Y).hom();return h.length===1&&h[0].every((f,i)=>rank(f)===X.d[i]);}
+ intern(M){if(this.interned.has(M))return this.interned.get(M);let key=M.d.join(),bucket=this.buckets.get(key)||[];for(const j of bucket)if(this.iso(M,this.registry[j])){this.interned.set(M,j);return j;}if(this.pair(M,M).hom().length!==1)throw Error('Mutation did not produce a scalar-endomorphism brick');let i=this.registry.length;this.registry.push(M);bucket.push(i);this.buckets.set(key,bucket);this.interned.set(M,i);return i;}
+ canon(labels){return labels.map(l=>({sign:l.sign,id:this.intern(l.M)})).sort((a,b)=>a.sign-b.sign||a.id-b.id);}
+ labels(ls){return ls.map(l=>({sign:l.sign,M:this.registry[l.id]}));}
+ validate(ls){for(let i=0;i<3;i++)for(let j=0;j<3;j++)if(i!==j){let a=ls[i],b=ls[j];if((a.sign===b.sign||a.sign===1&&b.sign===-1)&&this.pair(a.M,b.M).hom().length)throw Error('Hom orthogonality failed');if(a.sign===1&&b.sign===-1&&this.pair(a.M,b.M).ext().length)throw Error('Cross Ext orthogonality failed');}const C=cols(ls.map(l=>l.M.d.map(d=>q(l.sign*d))),3);const G=trans(solve(C,id(3)));if(G.a.some(x=>x[1]!==1n))throw Error('Signed dimensions are not a unimodular basis');return {C,G};}
+ explore(A,radius,base=-1,progress=()=>{}){if(!Number.isInteger(radius)||radius<0||radius>12)throw Error('Distance must be an integer from 0 to 12.');if(![-1,1].includes(base))throw Error('Invalid base');this.A=A;budget={until:Date.now()+1000*this.options.seconds,matrixEntries:this.options.matrixEntries,solver:this.options.solver};const states=[],byKey=new Map(),edges=[],edgeSet=new Set(),issues=[],queue=[],processed=new Set();let stopped='',done=0;
+ const add=(labels,d)=>{let ls=this.canon(labels),key=ls.map(l=>`${l.sign}:${l.id}`).join('|');if(byKey.has(key))return byKey.get(key);if(states.length>=this.options.maxstates)throw new Limit('Chamber count limit reached.');let {C,G}=this.validate(this.labels(ls)),i=states.length;states.push({id:i,key,labels:ls,distance:d,C:serialized(C),rays:serialized(G),neighbors:[null,null,null]});byKey.set(key,i);queue.push(i);return i;};
+ const snapshot=()=>({states,edges,bricks:this.registry.map((M,id)=>({id,d:M.d,maps:M.maps.map(m=>({rows:m.r,cols:m.c,entries:m.a.map(str)}))})),issues,status:stopped||'Computing',processed:done,radius,base,stats:{...this.stats},completeRadius:false,closedComponent:false});
+ try{
+  add([0,1,2].map(i=>({sign:base,M:A.simple(i)})),0);progress(snapshot());
+  for(let cursor=0;cursor<queue.length;cursor++){
+   tick();const stateId=queue[cursor],st=states[stateId],labels=this.labels(st.labels);
+   for(let pivot=0;pivot<3;pivot++){
+    if(st.neighbors[pivot]?.target!==undefined){const dst=st.neighbors[pivot].target;if(states[dst].distance>st.distance+1){states[dst].distance=st.distance+1;queue.push(dst);}continue;}
+    try{
+     const next=this.mutate(labels,pivot);this.validate(next);const ls=this.canon(next),key=ls.map(l=>`${l.sign}:${l.id}`).join('|');let dst=byKey.get(key);
+     if(dst===undefined&&st.distance<radius)dst=add(next,st.distance+1);
+     if(dst!==undefined){
+      st.neighbors[pivot]={target:dst};
+      // A successful mutation also certifies its inverse, even if the reverse
+      // computation previously exhausted a resource limit.
+      const back=states[dst].labels.findIndex(l=>l.id===st.labels[pivot].id&&l.sign===-st.labels[pivot].sign);
+      if(back<0)throw Error('Mutated pivot label missing');states[dst].neighbors[back]={target:stateId};
+      if(states[dst].distance>st.distance+1){states[dst].distance=st.distance+1;queue.push(dst);}
+      if(st.distance>states[dst].distance+1){st.distance=states[dst].distance+1;queue.push(stateId);}
+      const k=[Math.min(stateId,dst),Math.max(stateId,dst)].join('/');if(!edgeSet.has(k)){edgeSet.add(k);edges.push({source:stateId,target:dst,brick:st.labels[pivot].id});}
+     }else st.neighbors[pivot]={outside:true};
+    }catch(e){
+     if(e.kind==='outside-two-term')st.neighbors[pivot]={blocked:true,message:e.message};
+     else if(e instanceof Limit){st.neighbors[pivot]={limited:true,message:e.message};if(e.scope==='search')throw e;}
+     else throw e; // Mathematical/programming invariant failures remain fatal.
+    }
+   }
+   processed.add(stateId);done=processed.size;if(cursor%3===0)progress(snapshot());
+  }
+ }catch(e){if(!(e instanceof Limit))throw e;stopped=e.message;}finally{budget=null;}
+ for(const st of states)st.neighbors.forEach((n,pivot)=>{if(n?.limited||n?.blocked)issues.push({state:st.id,pivot,kind:n.limited?'resource-limit':'outside-two-term',message:n.message});});
+ let result=snapshot();result.completeRadius=!stopped&&!issues.length&&done===states.length;result.closedComponent=result.completeRadius&&states.every(s=>s.neighbors.every(n=>n&&n.target!==undefined));
+ const limited=issues.filter(i=>i.kind==='resource-limit').length,blocked=issues.length-limited;
+ result.status=stopped||(issues.length?`Search finished with ${limited} resource-limited and ${blocked} outside-two-term mutation directions; neighborhood incomplete.`:result.closedComponent?'Entire base component computed.':'Requested distance complete.');
+ result.distanceCertified=result.completeRadius;
+ return result;}
+}
+function run(config,progress){const A=new Algebra(config.arrows,parseRelations(config.relations||'',config.arrows)),e=new Engine(config.limits);return e.explore(A,Number(config.radius),Number(config.base??-1),progress);}
+return {run,Algebra,Rep,Engine,Pair,parseRelations,q,read,str,mat,id,at,put,rank,solve,nullspace,trans,mul,serialized};
+})();
+if(typeof module!=='undefined'&&module.exports)module.exports=TorsionEngine;
+if(typeof self!=='undefined'&&typeof document==='undefined'&&typeof self.postMessage==='function')self.onmessage=ev=>{try{const result=TorsionEngine.run(ev.data,data=>self.postMessage({type:'progress',data}));self.postMessage({type:'done',data:result});}catch(e){self.postMessage({type:'error',message:e.message});}};
+
+</script><script>'use strict';
+function decodeQuiverQuery(search){
+ const q=new URLSearchParams(search);if(!q.has('arrows'))return null;
+ const encoded=q.get('arrows');if((search||'').length>100000)throw Error('This quiver link is too large.');
+ const arrows=encoded?encoded.split(',').map(token=>{if(!/^[a-zA-Z][123][123]$/.test(token))throw Error('Write arrows as a12,b23: letter, source, target.');return {name:token[0],s:Number(token[1])-1,t:Number(token[2])-1};}):[];
+ const p={v:1,arrows,relations:q.get('relations')||'',radius:q.has('distance')?Number(q.get('distance')):4,base:q.get('base')==='down'?1:-1};
+ if(q.has('base')&&!['up','down'].includes(q.get('base')))throw Error('Base must be up or down.');
+ return decodeQuiverLink('#quiver='+encodeURIComponent(JSON.stringify(p)));
+}
+function encodeQuiverQuery(arrows,relations,radius,base){
+ const used=new Set(arrows.filter(a=>/^[a-zA-Z]$/.test(a.name)).map(a=>a.name)),rename=new Map();
+ for(const a of arrows){if(rename.has(a.name))throw Error('Arrow names must be distinct.');let name=a.name;if(!/^[a-zA-Z]$/.test(name)){name=[...'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'].find(c=>!used.has(c));if(!name)throw Error('Too many arrow names.');used.add(name);}rename.set(a.name,name);}
+ const lines=relations.split(/[\n;]/).map(line=>line.replace(/#.*$/,'').replace(/\s/g,'')).filter(Boolean).map(line=>{
+  line=line.replace(/=0$/,'');const terms=line.match(/[+-]?[^+-]+/g);if(!terms||terms.join('')!==line)throw Error('Check the relation syntax before copying a link.');
+  return terms.map(term=>{let sign='';if(/^[+-]/.test(term)){sign=term[0];term=term.slice(1);}const match=term.match(/^(\d+(?:\/\d+)?)(?:\*)?/),coefficient=match?match[1]:'';if(match)term=term.slice(match[0].length);const path=term.includes('*')?term.split('*'):rename.has(term)?[term]:[...term];if(!path.length||path.some(a=>!rename.has(a)))throw Error('A relation refers to an unknown arrow.');return sign+coefficient+path.map(a=>rename.get(a)).join('');}).join('');
+ });
+ const compact=arrows.map(a=>({name:rename.get(a.name),s:a.s,t:a.t})),query='?arrows='+compact.map(a=>`${a.name}${a.s+1}${a.t+1}`).join(',')+(lines.length?'&relations='+encodeURIComponent(lines.join(';')):'')+(radius!==4?'&distance='+radius:'')+(base===1?'&base=down':'');
+ decodeQuiverQuery(query);return query;
+}
+function decodeQuiverLink(hash){
+ if(!hash.startsWith('#quiver='))return null;
+ if(hash.length>100000)throw Error('This quiver link is too large.');
+ const p=JSON.parse(decodeURIComponent(hash.slice(8)));
+ if(p?.v!==1||!Array.isArray(p.arrows)||p.arrows.length>16||typeof p.relations!=='string'||!Number.isInteger(p.radius)||p.radius<0||p.radius>12||![-1,1].includes(p.base))throw Error('Invalid quiver link.');
+ const names=new Set();for(const a of p.arrows){if(!a||typeof a.name!=='string'||!/^[_A-Za-z][_A-Za-z0-9]*$/.test(a.name)||names.has(a.name)||![0,1,2].includes(a.s)||![0,1,2].includes(a.t))throw Error('Invalid arrows in quiver link.');names.add(a.name);}
+ if(p.positions!==undefined&&(!Array.isArray(p.positions)||p.positions.length!==3||p.positions.some(v=>!Array.isArray(v)||v.length!==2||!v.every(Number.isFinite)||v[0]<24||v[0]>276||v[1]<25||v[1]>177)))throw Error('Invalid vertex positions in quiver link.');
+ return p;
+}
+// Unfold angular distance from the base-centered sphere onto the graph plane.
+// Unlike orthographic projection, this keeps the rear hemisphere distinct.
+function chamberGraphSeeds(graph){
+ if(!graph.states.length)return [];
+ const number=x=>{const [a,b]=String(x).split('/').map(Number);return a/(b||1);};
+ const unit=v=>{const d=Math.hypot(...v);return v.map(x=>x/d);};
+ const center=s=>unit([0,1,2].map(j=>unit(s.rays.map(row=>number(row[j])))).reduce((a,b)=>a.map((x,i)=>x+b[i]),[0,0,0]));
+ const base=center(graph.states[0]),yaw=-Math.atan2(base[0],base[2]),pitch=Math.atan2(base[1],Math.hypot(base[0],base[2]));
+ return graph.states.map((s,i)=>{
+  if(!i)return [0,0];const v=center(s),x=v[0]*Math.cos(yaw)+v[2]*Math.sin(yaw),z=-v[0]*Math.sin(yaw)+v[2]*Math.cos(yaw),y=v[1]*Math.cos(pitch)-z*Math.sin(pitch),front=v[1]*Math.sin(pitch)+z*Math.cos(pitch),r=Math.hypot(x,y),angle=Math.atan2(r,front);
+  if(r<1e-10){if(front>0)return [0,0];const a=i*2.399963229728653;return [180*Math.PI*Math.cos(a),180*Math.PI*Math.sin(a)];}
+  return [180*angle*x/r,-180*angle*y/r];
+ });
+}
+// Rooted trees have a crossing-free radial embedding without force relaxation.
+function radialTreeLayout(graph,seeds){
+ const n=graph.states.length;if(!n||graph.edges.length!==n-1)return null;
+ const adj=Array.from({length:n},()=>[]);for(const e of graph.edges){adj[e.source].push(e.target);adj[e.target].push(e.source);}
+ const children=Array.from({length:n},()=>[]),depth=Array(n).fill(-1),order=[0];depth[0]=0;
+ for(let k=0;k<order.length;k++){const i=order[k];for(const j of adj[i])if(depth[j]<0){depth[j]=depth[i]+1;children[i].push(j);order.push(j);}}
+ if(order.length!==n)return null;
+ if(seeds)for(const list of children)list.sort((a,b)=>Math.atan2(seeds[a][1],seeds[a][0])-Math.atan2(seeds[b][1],seeds[b][0]));
+ const leaves=Array(n).fill(1);for(const i of order.slice().reverse())if(children[i].length)leaves[i]=children[i].reduce((s,j)=>s+leaves[j],0);
+ const pos=Array(n),sectors=Array(n);pos[0]=[0,0];sectors[0]=[-Math.PI,Math.PI];
+ for(const i of order){const [lo,hi]=sectors[i];let start=lo;for(const j of children[i]){const end=start+(hi-lo)*leaves[j]/leaves[i],angle=(start+end)/2;sectors[j]=[start,end];pos[j]=[110*depth[j]*Math.cos(angle),110*depth[j]*Math.sin(angle)];start=end;}}
+ return pos;
+}
+(()=>{
+const $=id=>document.getElementById(id),el=(tag,text,cls)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e;};
+const svg=(tag,attrs={})=>{const e=document.createElementNS('http://www.w3.org/2000/svg',tag);Object.entries(attrs).forEach(([k,v])=>e.setAttribute(k,v));return e;};
+const presets={
+ a3:{arrows:[['a',0,1],['b',1,2]],relations:'',radius:4},
+ preA3:{arrows:[['a',0,1],['b',1,0],['c',1,2],['d',2,1]],relations:'a*b\nb*a - c*d\nd*c',radius:6},
+ affine:{arrows:[['a',0,1],['A',1,0],['b',1,2],['B',2,1],['c',2,0],['C',0,2]],relations:'a*A - C*c\nb*B - A*a\nc*C - B*b',radius:4},
+ markov:{arrows:[['a',0,1],['b',0,1],['c',1,2],['d',1,2],['e',2,0],['f',2,0]],relations:'# Potential: a*c*e + b*d*f - a*d*e*b*c*f\nc*e - d*e*b*c*f\nd*f - c*f*a*d*e\ne*a - f*a*d*e*b\nf*b - e*b*c*f*a\na*c - b*c*f*a*d\nb*d - a*d*e*b*c',radius:3},
+ preMarkov:{arrows:[['a',0,1],['b',0,1],['c',1,2],['d',1,2],['e',2,0],['f',2,0],['A',1,0],['B',1,0],['C',2,1],['D',2,1],['E',0,2],['F',0,2]],relations:'a*A + b*B - E*e - F*f\nc*C + d*D - A*a - B*b\ne*E + f*F - C*c - D*d',radius:2},
+ kronecker:{arrows:[['a',0,1],['b',0,1]],relations:'',radius:4},
+ loop:{arrows:[['x',0,0],['a',0,1]],relations:'x*x*x',radius:5},
+ paths:{arrows:[['a',0,1],['b',1,2],['c',0,1],['d',1,2]],relations:'a*b + c*d',radius:3},
+ empty:{arrows:[],relations:'',radius:3}
+};
+let arrows=[],positions=[[48,151],[150,35],[252,151]],shiftSource=null;
+let graph=null,computedConfig=null,worker=null,request=0,selected=0,activeBrick=null,view='fan',dirty=false,resolveCompute=null,inputRevision=0,resultRequest=0;
+let yaw=2.36,pitch=-.61,zoom=1,pan=[0,0],nodePositions=[],layoutRemaining=0,layoutEdges=-1,treeTargets=null,hits=[],W=600,H=600;
+const canvas=$('scene'),ctx=canvas.getContext('2d');
+function setDirty(){inputRevision++;dirty=true;if(graph)showStatus();}
+function nextName(){const used=new Set(arrows.map(a=>a.name));for(const c of 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ')if(!used.has(c))return c;let i=1;while(used.has('a'+i))i++;return 'a'+i;}
+function addArrow(s,t){if(arrows.length>=16){$('error').textContent='This version supports up to 16 arrows.';return;}arrows.push({name:nextName(),s,t});setDirty();drawQuiver();}
+function drawQuiver(){const root=$('quiver');while(root.children.length>1)root.lastChild.remove();
+ const groups=new Map();arrows.forEach((a,i)=>{const key=[Math.min(a.s,a.t),Math.max(a.s,a.t)].join();if(!groups.has(key))groups.set(key,[]);groups.get(key).push(i);});
+ arrows.forEach((a,index)=>{const group=groups.get([Math.min(a.s,a.t),Math.max(a.s,a.t)].join()),k=group.indexOf(index),p=positions[a.s],q=positions[a.t];let d,label;
+ if(a.s===a.t){let spread=30+k*14,side=p[1]<95?1:-1;d=`M${p[0]-14},${p[1]+side*14} C${p[0]-spread-24},${p[1]+side*(spread+42)} ${p[0]+spread+24},${p[1]+side*(spread+42)} ${p[0]+14},${p[1]+side*14}`;label=[p[0],Math.max(13,Math.min(190,p[1]+side*(spread+34)))];}
+ else {let u=positions[Math.min(a.s,a.t)],v=positions[Math.max(a.s,a.t)],len=Math.hypot(v[0]-u[0],v[1]-u[1])||1,offset=(k-(group.length-1)/2)*32;let c=[(p[0]+q[0])/2-(v[1]-u[1])*offset/len,(p[1]+q[1])/2+(v[0]-u[0])*offset/len];const from=(p,c,r)=>{let d=Math.hypot(c[0]-p[0],c[1]-p[1])||1;return [p[0]+(c[0]-p[0])*r/d,p[1]+(c[1]-p[1])*r/d];};let p1=from(p,c,22),q1=from(q,c,24);d=`M${p1} Q${c} ${q1}`;label=[(p[0]+2*c[0]+q[0])/4,(p[1]+2*c[1]+q[1])/4-7];}
+ root.append(svg('path',{d,fill:'none',stroke:'#526d83','stroke-width':1.8,'marker-end':'url(#arrow)'}));const text=svg('text',{x:label[0],y:label[1],'text-anchor':'middle',fill:'#203b52','font-size':14,'paint-order':'stroke',stroke:'#f4f8fa','stroke-width':4});text.textContent=a.name;root.append(text);
+ });
+ positions.forEach((p,i)=>{const g=svg('g',{class:'vertex',tabindex:0,role:'button','aria-label':`Vertex ${i+1}. Shift-click to choose an arrow endpoint.`});g.append(svg('circle',{cx:p[0],cy:p[1],r:20,fill:shiftSource===i?'#c5edf0':'white',stroke:'#087e8b','stroke-width':2}));const t=svg('text',{x:p[0],y:p[1]+6,'text-anchor':'middle','font-size':17,fill:'#18364c'});t.textContent=i+1;g.append(t);g.addEventListener('pointerdown',ev=>{ev.preventDefault();if(ev.shiftKey){if(shiftSource===null)shiftSource=i;else{const s=shiftSource;shiftSource=null;addArrow(s,i);}drawQuiver();return;}const move=e=>{const rect=root.getBoundingClientRect();positions[i]=[Math.max(24,Math.min(276,(e.clientX-rect.left)*300/rect.width)),Math.max(25,Math.min(177,(e.clientY-rect.top)*200/rect.height))];drawQuiver();};const up=()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);};window.addEventListener('pointermove',move);window.addEventListener('pointerup',up,{once:true});});g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();if(shiftSource===null)shiftSource=i;else{let s=shiftSource;shiftSource=null;addArrow(s,i);}drawQuiver();}});root.append(g);});
+ const rows=$('arrows');rows.replaceChildren();arrows.forEach((a,i)=>{const row=el('div',undefined,'arrow-row'),name=el('input');name.value=a.name;name.setAttribute('aria-label',`Name of arrow ${i+1}`);name.maxLength=16;name.addEventListener('change',()=>{arrows[i].name=name.value.trim();setDirty();drawQuiver();});const del=el('button','×');del.title=`Remove arrow ${a.name}`;del.setAttribute('aria-label',del.title);del.onclick=()=>{arrows.splice(i,1);setDirty();drawQuiver();};row.append(name,el('span',`${a.s+1} → ${a.t+1}`),del);rows.append(row);});
+}
+function loadPreset(name){const p=presets[name];if(!p)throw Error('Unknown example');arrows=p.arrows.map(([name,s,t])=>({name,s,t}));positions=[[48,151],[150,35],[252,151]];shiftSource=null;$('relations').value=p.relations;$('radius').value=p.radius;$('base').value='-1';setDirty();drawQuiver();}
+function config(){const radius=Number($('radius').value),maxdim=Number($('maxdim').value),seconds=Number($('seconds').value),matrixEntries=Number($('matrixEntries').value)*1000000,maxrounds=Number($('maxrounds').value);if(!Number.isInteger(radius)||radius<0||radius>12)throw Error('Distance must be an integer between 0 and 12.');if(!Number.isInteger(maxdim)||maxdim<3||maxdim>256)throw Error('Maximum module dimension must be between 3 and 256.');if(!Number.isFinite(seconds)||seconds<5||seconds>600)throw Error('Choose a time limit between 5 and 600 seconds.');if(!Number.isInteger(matrixEntries)||matrixEntries<100000||matrixEntries>8000000)throw Error('Choose a matrix limit between 0.1 and 8 million entries.');if(!Number.isInteger(maxrounds)||maxrounds<1||maxrounds>256)throw Error('Choose between 1 and 256 extension rounds.');return {arrows:arrows.map(a=>({...a})),relations:$('relations').value,radius,base:Number($('base').value),limits:{maxdim,seconds,matrixEntries,maxrounds}};}
+function busy(b){document.body.classList.toggle('busy',b);$('stop').hidden=!b;$('compute').disabled=b;}
+function stop(){if(worker){worker.terminate();worker=null;if(graph&&resultRequest===request){graph.completeRadius=false;graph.closedComponent=false;graph.status='Stopped. The displayed neighborhood is incomplete.';}request++;showStatus();busy(false);inspect();if(resolveCompute){resolveCompute({completed:false});resolveCompute=null;}}}
+async function compute(){let cfg;try{cfg=config();}catch(e){$('error').textContent=e.message;throw e;}stop();$('error').textContent='';busy(true);$('status').textContent='Computing exact mutations…';const token=++request,revision=inputRevision;let first=true;
+ return new Promise((resolve,reject)=>{resolveCompute=resolve;let url;try{url=URL.createObjectURL(new Blob([$('worker-source').textContent],{type:'application/javascript'}));worker=new Worker(url);URL.revokeObjectURL(url);}catch(e){busy(false);$('error').textContent='The browser could not start the computation worker. Open this file in a current Chrome, Edge, or Firefox browser.';reject(e);return;}
+ worker.onmessage=ev=>{if(token!==request)return;const m=ev.data;if(m.type==='error'){$('error').textContent=m.message;$('status').textContent='Input or computation error';busy(false);worker.terminate();worker=null;resolveCompute=null;reject(Error(m.message));return;}if(m.data){computedConfig=cfg;dirty=revision!==inputRevision;graph=m.data;resultRequest=token;if(first){first=false;selected=0;activeBrick=null;nodePositions=[];pan=[0,0];zoom=1;focusSelected();}updateResult();}if(m.type==='done'){busy(false);worker.terminate();worker=null;resolveCompute=null;resolve({completed:graph.completeRadius,chambers:graph.states.length,edges:graph.edges.length,status:graph.status});}};
+ worker.onerror=ev=>{if(token!==request)return;$('error').textContent='Computation worker failed: '+ev.message;busy(false);worker.terminate();worker=null;resolveCompute=null;reject(Error(ev.message));};worker.postMessage(cfg);
+ });
+}
+function showStatus(){if(!graph)return;$('counts').textContent=`${graph.states.length} chambers · ${graph.edges.length} edges`;$('status').textContent=graph.status==='Computing'?`Computing · ${graph.processed} chambers expanded`:graph.status;$('notice').hidden=!dirty&&(graph.completeRadius||graph.status==='Computing');$('notice').textContent=dirty?'Inputs changed. The displayed result belongs to the previous computation; press Compute chambers to update.':graph.status+(graph.issues?.length?' Distances are lengths of discovered paths; missing edges may give shorter routes.':'');}
+function updateResult(){if(!graph)return;$('emptyState').hidden=!!graph.states.length;selected=Math.min(selected,graph.states.length-1);const select=$('chamber');select.replaceChildren(...graph.states.map(s=>{const o=el('option',`Chamber ${s.id} · distance ${s.distance}`);o.value=s.id;return o;}));select.value=selected;$('export').disabled=false;showStatus();layoutGraph();updateProjection();inspect();draw();}
+const numeric=x=>{let [a,b]=String(x).split('/').map(Number);return a/(b||1);};
+const rays=s=>[0,1,2].map(j=>s.rays.map(row=>numeric(row[j])));
+const norm=v=>{const n=Math.hypot(...v);return v.map(x=>x/n);},vadd=(a,b)=>a.map((x,i)=>x+b[i]);
+function focusSelected(){if(!graph?.states[selected])return;let p=norm(rays(graph.states[selected]).map(norm).reduce(vadd,[0,0,0]));yaw=-Math.atan2(p[0],p[2]);pitch=Math.atan2(p[1],Math.hypot(p[0],p[2]));}
+function choose(i,focus=true){if(!graph?.states[i])return;selected=i;activeBrick=null;$('chamber').value=i;if(focus)focusSelected();inspect();draw();}
+function updateProjection(){const sign=computedConfig?.base??-1;let valid=graph?.states.length&&graph.states.every(s=>rays(s).every(v=>sign*v.reduce((a,b)=>a+b,0)>1e-9));$('projection').options[1].disabled=!valid;$('projection').options[1].textContent=`Slice θ₁ + θ₂ + θ₃ = ${sign}`;if(!valid&&$('projection').value==='slice')$('projection').value='sphere';$('projection').hidden=view==='graph';$('viewhint').textContent=view==='graph'?'Drag to pan · scroll to zoom · click a chamber':$('projection').value==='slice'?'Drag to pan · scroll to zoom · click an alcove':'Drag to rotate · scroll to zoom · click a chamber';}
+function inspect(){const area=$('labels');area.replaceChildren();$('brickDetail').replaceChildren();if(!graph?.states[selected])return;const s=graph.states[selected];$('chamberInfo').textContent=`${graph.completeRadius?'Distance':'Discovered path length'} ${s.distance} from the base · ${s.labels.filter(l=>l.sign>0).length} downwards, ${s.labels.filter(l=>l.sign<0).length} upwards`;
+ s.labels.forEach((l,p)=>{const b=graph.bricks[l.id],card=el('div',undefined,`label-card ${l.sign>0?'downward':''} ${activeBrick===l.id?'active':''}`),top=el('div',undefined,'label-top');top.append(el('strong',`B${l.id}`),el('span',l.sign<0?'↑ Upwards':'↓ Downwards','direction'));const actions=el('div',undefined,'label-actions'),next=s.neighbors[p],go=el('button',next?.target!==undefined?`Mutate → ${next.target}`:next?.outside?'Beyond radius':next?.limited?'Resource limit':next?.blocked?'Outside two-term':graph.status==='Computing'?'Pending':'Not reached'),details=el('button','Inspect');go.disabled=next?.target===undefined;go.title=next?.outside?'Increase the distance and recompute to follow this edge.':next?.message||'Follow this mutation';go.onclick=()=>choose(next.target);details.onclick=()=>{activeBrick=activeBrick===l.id?null:l.id;inspect();draw();};actions.append(go,details);card.append(top,el('div',`(${b.d.join(', ')})`,'dim'),actions);if(next?.message)card.append(el('p',next.message,'mutation-issue'));else if(!next&&graph.status!=='Computing')card.append(el('p','The search stopped before attempting this direction.','hint'));area.append(card);});
+ if(activeBrick!==null){const b=graph.bricks[activeBrick];$('brickDetail').append(el('h3',`Brick B${b.id} · arrow matrices`));b.maps.forEach((m,i)=>{let a=computedConfig.arrows[i],box=el('div',undefined,'arrow-matrix');box.append(el('strong',`${a.name}: ${a.s+1} → ${a.t+1}`));const text=m.rows&&m.cols?Array.from({length:m.rows},(_,r)=>m.entries.slice(r*m.cols,(r+1)*m.cols).join('  ')).join('\n'):`Empty matrix (${m.rows} × ${m.cols})`;box.append(el('pre',text,'matrix'));$('brickDetail').append(box);});if(!b.maps.length)$('brickDetail').append(el('p','There are no arrows.','hint'));}
+ const geom=$('geometry');geom.replaceChildren();s.labels.forEach(l=>{const d=graph.bricks[l.id].d;let expression=d.map((v,i)=>v?`${l.sign*v}θ${['₁','₂','₃'][i]}`:null).filter(Boolean).join(' + ').replace(/\+ -/g,'− ');geom.append(el('p',expression+' ≥ 0'));});geom.append(el('strong','Ray columns'),el('pre',s.rays.map(r=>r.join('  ')).join('\n'),'matrix'));
+}
+function layoutGraph(){if(!graph)return;const old=nodePositions,seeds=chamberGraphSeeds(graph);if(old.length!==graph.states.length||layoutEdges!==graph.edges.length){layoutRemaining=2400;layoutEdges=graph.edges.length;treeTargets=radialTreeLayout(graph,seeds);}nodePositions=graph.states.map((s,i)=>old[i]||seeds[i]);if(treeTargets)layoutRemaining=120;else if(nodePositions.length>600)layoutRemaining=0;}
+function relaxGraph(){const n=nodePositions.length;if(!layoutRemaining)return;if(treeTargets){let movement=0;nodePositions.forEach((p,i)=>{const dx=(treeTargets[i][0]-p[0])*.15,dy=(treeTargets[i][1]-p[1])*.15;p[0]+=dx;p[1]+=dy;movement=Math.max(movement,Math.hypot(dx,dy));});layoutRemaining--;if(movement<.03)layoutRemaining=0;return;}for(let step=0;step<2&&layoutRemaining>0;step++,layoutRemaining--){const f=nodePositions.map(()=>[0,0]);for(let i=0;i<n;i++)for(let j=i+1;j<n;j++){let dx=nodePositions[i][0]-nodePositions[j][0],dy=nodePositions[i][1]-nodePositions[j][1],dd=dx*dx+dy*dy+100,push=2100/dd;f[i][0]+=dx*push;f[i][1]+=dy*push;f[j][0]-=dx*push;f[j][1]-=dy*push;}for(const e of graph.edges){let a=nodePositions[e.source],b=nodePositions[e.target],dx=b[0]-a[0],dy=b[1]-a[1],len=Math.hypot(dx,dy)||1,k=(len-90)*.04;f[e.source][0]+=dx/len*k;f[e.source][1]+=dy/len*k;f[e.target][0]-=dx/len*k;f[e.target][1]-=dy/len*k;}let movement=0;nodePositions.forEach((p,i)=>{const dx=Math.max(-8,Math.min(8,f[i][0])),dy=Math.max(-8,Math.min(8,f[i][1]));p[0]+=dx;p[1]+=dy;movement=Math.max(movement,Math.hypot(dx,dy));});if(movement<.03)layoutRemaining=0;}}
+const color=(s,alpha=1)=>s.id===selected?`rgba(56,92,199,${alpha})`:s.labels.filter(l=>l.sign>0).length>=2?`hsla(${17+s.distance%4*3},52%,${66+s.id%3*4}%,${alpha})`:`hsla(${183+s.distance%4*4},43%,${61+s.id%3*4}%,${alpha})`;
+function polygon(points,fill,stroke='#ffffff',width=.8){if(points.length<3)return;ctx.beginPath();points.forEach((p,i)=>i?ctx.lineTo(...p):ctx.moveTo(...p));ctx.closePath();ctx.fillStyle=fill;ctx.fill();if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=width;ctx.stroke();}}
+function label(text,x,y,size=12,fill='#18364c'){ctx.font=`${size}px Segoe UI, Arial`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle=fill;ctx.fillText(text,x,y);}
+function rotate(v){const x=v[0]*Math.cos(yaw)+v[2]*Math.sin(yaw),z=-v[0]*Math.sin(yaw)+v[2]*Math.cos(yaw);return [x,v[1]*Math.cos(pitch)-z*Math.sin(pitch),v[1]*Math.sin(pitch)+z*Math.cos(pitch)];}
+function sphere(){const radius=Math.min(W,H-65)*.40*zoom,center=[W/2,H/2-10],project=v=>[center[0]+radius*v[0],center[1]-radius*v[1]];ctx.beginPath();ctx.arc(...center,radius,0,Math.PI*2);ctx.fillStyle='#e1eaf0';ctx.fill();ctx.strokeStyle='#b7c8d5';ctx.lineWidth=1;ctx.stroke();
+ const clip=ps=>{let out=[];for(let i=0;i<ps.length;i++){let a=ps[i],b=ps[(i+1)%ps.length];if(a[2]>=0)out.push(a);if((a[2]>=0)!==(b[2]>=0)){let t=a[2]/(a[2]-b[2]);out.push(norm(a.map((x,k)=>x+t*(b[k]-x))));}}return out;};
+ const tiles=[];function subdiv(a,b,c,depth,s){if(!depth){let p=clip([rotate(a),rotate(b),rotate(c)]);if(p.length>=3)tiles.push({p,s,z:p.reduce((n,v)=>n+v[2],0)/p.length});return;}let ab=norm(vadd(a,b)),bc=norm(vadd(b,c)),ca=norm(vadd(c,a));subdiv(a,ab,ca,depth-1,s);subdiv(ab,b,bc,depth-1,s);subdiv(ca,bc,c,depth-1,s);subdiv(ab,bc,ca,depth-1,s);}
+ for(const s of graph.states){const r=rays(s).map(norm);subdiv(...r,3,s);}tiles.sort((a,b)=>a.z-b.z);for(const t of tiles){const ps=t.p.map(project);polygon(ps,color(t.s),null);hits.push({points:ps,id:t.s.id});}
+ // Exact great-circle boundaries are sampled independently of the fill tessellation.
+ for(const s of graph.states){const r=rays(s).map(norm);ctx.lineWidth=s.id===selected?2.2:1;ctx.strokeStyle=s.id===selected?'#173a91':'#ffffffdd';for(let i=0;i<3;i++){ctx.beginPath();let started=false;for(let j=0;j<=30;j++){const t=j/30,v=rotate(norm(r[i].map((x,k)=>x*(1-t)+r[(i+1)%3][k]*t)));if(v[2]>=0){let p=project(v);if(started)ctx.lineTo(...p);else ctx.moveTo(...p);started=true;}else started=false;}ctx.stroke();}
+ let v=rotate(norm(r.reduce(vadd,[0,0,0])));if(v[2]>.15&&(graph.states.length<80||s.id===selected)){let p=project(v);label(String(s.id),...p,s.id===selected?14:12,s.id===selected?'white':'#193a4c');}}
+ for(let i=0;i<3;i++)for(const sign of [-1,1]){let v=rotate([0,1,2].map(j=>i===j?sign:0));if(v[2]>=0){const p=project(v.map(x=>x*1.09));label(`${sign<0?'−':''}θ${i+1}`,...p,13,'#506a80');}}
+}
+function slice(){let sign=computedConfig.base,triangles=graph.states.map(s=>({s,points:rays(s).map(v=>{let d=v.reduce((a,b)=>a+b,0);v=v.map(x=>sign*x/d);return [(v[0]-v[1])/Math.sqrt(2),(v[0]+v[1]-2*v[2])/Math.sqrt(6)];})}));let pts=triangles.flatMap(t=>t.points),minX=Math.min(...pts.map(p=>p[0])),maxX=Math.max(...pts.map(p=>p[0])),minY=Math.min(...pts.map(p=>p[1])),maxY=Math.max(...pts.map(p=>p[1])),scale=Math.min((W-90)/(maxX-minX||1),(H-110)/(maxY-minY||1))*zoom;const project=p=>[W/2+(p[0]-(minX+maxX)/2)*scale+pan[0],(H-35)/2-(p[1]-(minY+maxY)/2)*scale+pan[1]];
+ for(let {s,points} of triangles){let ps=points.map(project);polygon(ps,color(s),s.id===selected?'#173a91':'white',s.id===selected?2.5:1.2);hits.push({points:ps,id:s.id});let c=ps.reduce(vadd,[0,0]).map(x=>x/3);if(graph.states.length<150||s.id===selected)label(String(s.id),...c,12,s.id===selected?'white':'#193a4c');}}
+function drawGraph(){if(!nodePositions.length)return;const maxX=Math.max(100,...nodePositions.map(p=>Math.abs(p[0]))),maxY=Math.max(100,...nodePositions.map(p=>Math.abs(p[1]))),scale=Math.min((W-90)/(2*maxX),(H-110)/(2*maxY))*zoom;const project=p=>[W/2+p[0]*scale+pan[0],H/2-15+p[1]*scale+pan[1]],pos=nodePositions.map(project);for(const e of graph.edges){let a=pos[e.source],b=pos[e.target],incident=e.source===selected||e.target===selected;ctx.strokeStyle=incident?'#244c83':'#a9bac8';ctx.lineWidth=incident?2:1;ctx.beginPath();ctx.moveTo(...a);ctx.lineTo(...b);ctx.stroke();let ls=graph.states[e.source].labels.find(l=>l.id===e.brick),from=ls?.sign<0?a:b,to=ls?.sign<0?b:a,dx=to[0]-from[0],dy=to[1]-from[1],len=Math.hypot(dx,dy)||1,m=[from[0]+dx*.57,from[1]+dy*.57];polygon([m,[m[0]-dx/len*7-dy/len*3,m[1]-dy/len*7+dx/len*3],[m[0]-dx/len*7+dy/len*3,m[1]-dy/len*7-dx/len*3]],incident?'#244c83':'#8299ac',null);
+ if(incident){let text=`B${e.brick} (${graph.bricks[e.brick].d.join(',')})`,x=(a[0]+b[0])/2,y=(a[1]+b[1])/2-12;ctx.font='12px Segoe UI';let width=ctx.measureText(text).width+8;ctx.fillStyle='#f7fafbee';ctx.fillRect(x-width/2,y-9,width,18);label(text,x,y,12);}}
+ for(const s of graph.states){const p=pos[s.id],r=s.id===selected?14:10;ctx.beginPath();ctx.arc(...p,r,0,Math.PI*2);ctx.fillStyle=color(s);ctx.fill();ctx.strokeStyle=s.id===selected?'#163b92':'white';ctx.lineWidth=s.id===selected?2.5:1.5;ctx.stroke();if(r>=9)label(String(s.id),...p,12,s.id===selected?'white':'#183b4f');hits.push({point:p,r:r+4,id:s.id});if(s.neighbors.some(n=>n?.outside)){ctx.beginPath();ctx.arc(...p,r+3,0,Math.PI*2);ctx.setLineDash([2,3]);ctx.strokeStyle='#8297a8';ctx.lineWidth=1;ctx.stroke();ctx.setLineDash([]);}}
+}
+let frame=null;function draw(){if(frame)return;frame=requestAnimationFrame(()=>{frame=null;const rect=canvas.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,2);W=rect.width;H=rect.height;if(canvas.width!==Math.round(W*dpr)||canvas.height!==Math.round(H*dpr)){canvas.width=Math.round(W*dpr);canvas.height=Math.round(H*dpr);}ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);hits=[];if(!graph?.states.length)return;if(view==='graph'){relaxGraph();drawGraph();if(layoutRemaining>0)draw();}else if($('projection').value==='slice')slice();else sphere();});}
+function inside(p,vs){let c=false;for(let i=0,j=vs.length-1;i<vs.length;j=i++){let a=vs[i],b=vs[j];if((a[1]>p[1])!==(b[1]>p[1])&&p[0]<(b[0]-a[0])*(p[1]-a[1])/(b[1]-a[1])+a[0])c=!c;}return c;}
+let pointer=null;canvas.addEventListener('pointerdown',e=>{pointer={x:e.clientX,y:e.clientY,startX:e.clientX,startY:e.clientY,moved:false};canvas.setPointerCapture(e.pointerId);});canvas.addEventListener('pointermove',e=>{if(!pointer)return;let dx=e.clientX-pointer.x,dy=e.clientY-pointer.y;pointer.x=e.clientX;pointer.y=e.clientY;pointer.moved ||=Math.hypot(e.clientX-pointer.startX,e.clientY-pointer.startY)>4;if(view==='fan'&&$('projection').value==='sphere'){yaw+=dx*.009;pitch=Math.max(-1.55,Math.min(1.55,pitch+dy*.009));}else{pan[0]+=dx;pan[1]+=dy;}draw();});canvas.addEventListener('pointerup',e=>{if(pointer&&!pointer.moved){const r=canvas.getBoundingClientRect(),p=[e.clientX-r.left,e.clientY-r.top];for(let i=hits.length-1;i>=0;i--){let h=hits[i];if(h.point?Math.hypot(h.point[0]-p[0],h.point[1]-p[1])<=h.r:inside(p,h.points)){choose(h.id,false);break;}}}pointer=null;});canvas.addEventListener('pointercancel',()=>pointer=null);canvas.addEventListener('wheel',e=>{e.preventDefault();zoom=Math.max(.25,Math.min(8,zoom*Math.exp(-e.deltaY*.001)));draw();},{passive:false});canvas.addEventListener('keydown',e=>{if(['ArrowRight','ArrowLeft'].includes(e.key)&&graph){e.preventDefault();choose((selected+(e.key==='ArrowRight'?1:-1)+graph.states.length)%graph.states.length);}});
+function setView(v){view=v;$('fanTab').setAttribute('aria-selected',v==='fan');$('graphTab').setAttribute('aria-selected',v==='graph');pan=[0,0];zoom=1;updateProjection();if(v==='fan')focusSelected();draw();}
+$('preset').onchange=()=>{loadPreset($('preset').value);compute().catch(()=>{});};$('addArrow').onclick=()=>addArrow(Number($('from').value)-1,Number($('to').value)-1);$('compute').onclick=()=>compute().catch(()=>{});$('stop').onclick=stop;$('relations').addEventListener('input',setDirty);for(const name of ['radius','base','maxdim','seconds','matrixEntries','maxrounds'])$(name).addEventListener('change',setDirty);$('chamber').onchange=()=>choose(Number($('chamber').value));$('fanTab').onclick=()=>setView('fan');$('graphTab').onclick=()=>setView('graph');$('projection').onchange=()=>{zoom=1;pan=[0,0];updateProjection();draw();};$('resetView').onclick=()=>{zoom=1;pan=[0,0];focusSelected();draw();};$('export').onclick=()=>{if(!graph)return;const url=URL.createObjectURL(new Blob([JSON.stringify({format:'torsion-classes-v1',input:computedConfig,result:graph},null,2)],{type:'application/json'})),a=el('a');a.href=url;a.download='torsion-classes.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};new ResizeObserver(draw).observe(canvas);
+// Optional structured actions use the same application state and visible flows.
+const context=document.modelContext;if(context?.registerTool){const life=new AbortController(),register=tool=>{try{Promise.resolve(context.registerTool(tool,{signal:life.signal})).catch(()=>{});}catch{}};
+ register({name:'compute_torsion_example',description:'Choose a quiver example and compute its mutation neighborhood. Updates the visible app.',inputSchema:{type:'object',properties:{example:{type:'string',enum:Object.keys(presets)},distance:{type:'integer',minimum:0,maximum:12}},required:['example'],additionalProperties:false},annotations:{readOnlyHint:false},execute:async input=>{if(!input||!Object.hasOwn(presets,input.example))throw Error('Unknown example');if(input.distance!==undefined&&(!Number.isInteger(input.distance)||input.distance<0||input.distance>12))throw Error('Invalid distance');loadPreset(input.example);$('preset').value=input.example;if(input.distance!==undefined)$('radius').value=input.distance;return await compute();}});
+ register({name:'read_torsion_chamber',description:'Read the selected chamber and its brick labels.',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true},execute:()=>graph?{chamber:selected,state:graph.states[selected],bricks:graph.states[selected].labels.map(l=>graph.bricks[l.id]),status:graph.status}: {status:'No computation'}});window.addEventListener('pagehide',()=>life.abort(),{once:true});}
+function restoreLink(){const p=decodeQuiverQuery(window.location.search)||decodeQuiverLink(window.location.hash);if(!p)return false;arrows=p.arrows.map(a=>({name:a.name,s:a.s,t:a.t}));positions=[[48,151],[150,35],[252,151]];shiftSource=null;$('preset').value='';$('relations').value=p.relations;$('radius').value=p.radius;$('base').value=String(p.base);setDirty();drawQuiver();return true;}
+$('copyLink').onclick=async()=>{try{
+ const query=encodeQuiverQuery(arrows,$('relations').value,Number($('radius').value),Number($('base').value));
+ const link=window.location.href.split(/[?#]/)[0]+query;$('shareLink').value=link;$('shareLink').hidden=true;
+ try{await navigator.clipboard.writeText(link);$('shareStatus').textContent='Link copied.';}catch{$('shareLink').hidden=false;$('shareLink').focus();$('shareLink').select();$('shareStatus').textContent='Select and copy the link below.';}
+ if(['localhost','127.0.0.1','::1','[::1]'].includes(window.location.hostname))$('shareStatus').textContent+=' This local preview address works only on this computer.';
+ else if(window.location.protocol==='file:')$('shareStatus').textContent+=' This link points to your local HTML file; use the hosted app to share with others.';
+ }catch(e){$('shareStatus').textContent=e.message;}};
+window.addEventListener('hashchange',()=>{try{if(restoreLink())compute().catch(()=>{});}catch(e){$('error').textContent='Could not open quiver link: '+e.message;}});
+loadPreset('a3');try{restoreLink();draw();compute().catch(()=>{});}catch(e){$('error').textContent='Could not open quiver link: '+e.message;draw();}
+})();
+</script>
+</body></html>
